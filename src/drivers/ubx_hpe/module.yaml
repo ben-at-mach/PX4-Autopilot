@@ -1,0 +1,146 @@
+module_name: u-blox HPE recorder
+
+serial_config:
+  - command: ubx_hpe start -d ${SERIAL_DEV} -b p:${BAUD_PARAM}
+    port_config_param:
+      name: UBX_HPE_CFG
+      group: GPS
+      default: GPS1
+    label: u-blox HPE receiver
+
+documentation:
+  description: Raw UART recorder for u-blox HPE receivers. Initial support captures bytes to SD and/or gps_dump.
+
+parameters:
+  - group: GPS
+    definitions:
+      UBX_HPE_PORT:
+        description:
+          short: u-blox receiver UART port
+          long: |
+            u-blox receiver-side UART port to configure when automatic receiver configuration is enabled.
+            This is separate from UBX_HPE_CFG, which selects the PX4 autopilot serial port.
+        type: enum
+        values:
+          1: UART1
+          2: UART2
+        default: 1
+        reboot_required: true
+      UBX_HPE_DUMP:
+        description:
+          short: Publish gps_dump
+          long: |
+            Publish raw receiver bytes on the gps_dump uORB topic. Disable this if another
+            driver is using gps_dump and only SD-card capture is desired.
+        type: int32
+        min: 0
+        max: 1
+        default: 1
+        reboot_required: true
+      UBX_HPE_FILE:
+        description:
+          short: Write UBX file
+          long: |
+            Write raw receiver bytes to a .ubx file on the SD card. This is useful for
+            first hardware bring-up and post-processing captures, but can be disabled
+            when gps_dump or ULog capture is preferred.
+        type: int32
+        min: 0
+        max: 1
+        default: 1
+        reboot_required: true
+      UBX_HPE_FNAME:
+        description:
+          short: UBX filename mode
+          long: |
+            Selects how the SD-card .ubx filename is chosen. Fixed uses /fs/microsd/ubx_hpe.ubx
+            and overwrites it on each start. Increment uses the first free /fs/microsd/ubx_hpe_NNN.ubx
+            filename. Realtime uses the system CLOCK_REALTIME epoch timestamp when valid, and falls
+            back to incrementing if realtime is not set yet at boot.
+        type: enum
+        values:
+          0: Fixed
+          1: Increment
+          2: Realtime
+        default: 1
+        reboot_required: true
+      UBX_HPE_DUMP_I:
+        description:
+          short: gps_dump instance
+          long: |
+            Instance value written into gps_dump.instance when raw receiver bytes are published.
+            Use a value that does not collide with other GNSS drivers publishing gps_dump.
+            PX4's conventional main and secondary GNSS dump instances are 0 and 1, so this
+            driver defaults to 2.
+        type: int32
+        min: 0
+        max: 255
+        default: 2
+        reboot_required: true
+      UBX_HPE_RATE:
+        description:
+          short: u-blox measurement period
+          long: |
+            Receiver measurement period in milliseconds. Message-rate divisor parameters are relative to this base rate.
+            For example, 100 ms gives a 10 Hz base rate and 40 ms gives a 25 Hz base rate.
+        type: int32
+        min: 40
+        max: 1000
+        default: 100
+        unit: ms
+        reboot_required: true
+      UBX_HPE_RAW:
+        description:
+          short: Raw measurement message divisor
+          long: |
+            CFG-MSGOUT divisor for high-rate raw measurement messages such as RXM-RAWX.
+            A value of 0 disables the group. A value of 1 publishes every navigation epoch.
+        type: int32
+        min: 0
+        max: 255
+        default: 1
+        reboot_required: true
+      UBX_HPE_SOL:
+        description:
+          short: Solution message divisor
+          long: |
+            CFG-MSGOUT divisor for solution messages such as NAV-PVT and NAV-RELPOSNED.
+            A value of 0 disables the group. A value of 1 publishes every navigation epoch.
+        type: int32
+        min: 0
+        max: 255
+        default: 1
+        reboot_required: true
+      UBX_HPE_STAT:
+        description:
+          short: Status message divisor
+          long: |
+            CFG-MSGOUT divisor for status, timing, signal, and RF health messages such as NAV-STATUS,
+            NAV-CLOCK, NAV-SAT, NAV-SIG, RXM-COR, MON-RF, MON-COMMS, and MON-SYS.
+        type: int32
+        min: 0
+        max: 255
+        default: 10
+        reboot_required: true
+      UBX_HPE_SPAN:
+        description:
+          short: Spectrum monitor divisor
+          long: |
+            CFG-MSGOUT divisor for MON-SPAN spectrum monitoring messages.
+            This should usually be slower than normal status messages because MON-SPAN is comparatively large.
+        type: int32
+        min: 0
+        max: 255
+        default: 50
+        reboot_required: true
+      UBX_HPE_SFRBX:
+        description:
+          short: Navigation bits divisor
+          long: |
+            CFG-MSGOUT divisor for RXM-SFRBX navigation-bit messages.
+            Use a low periodic rate or disable and poll on demand if UART bandwidth is tight.
+        type: int32
+        min: 0
+        max: 255
+        default: 100
+        reboot_required: true

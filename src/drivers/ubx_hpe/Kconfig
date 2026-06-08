@@ -1,0 +1,8 @@
+menuconfig DRIVERS_UBX_HPE
+	bool "u-blox HPE raw recorder"
+	default n
+	---help---
+		Raw UART recorder for u-blox HPE receivers such as ZED-X20P and ZED-F9P.
+		The first implementation records receiver bytes to a .ubx file and/or the
+		existing gps_dump uORB topic. Receiver configuration and UBX message parsing
+		can be layered in later without competing with the generic GPS driver.
