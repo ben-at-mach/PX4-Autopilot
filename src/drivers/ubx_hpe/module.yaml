@@ -26,6 +26,64 @@ parameters:
           2: UART2
         default: 1
         reboot_required: true
+      UBX_HPE_CONST:
+        description:
+          short: GNSS constellations
+          long: |
+            Constellation enable mask to apply when receiver auto-configuration is enabled.
+            Use this to control which constellations the receiver uses for HPE observation,
+            solution, and diagnostic output. This parameter is defined now for the future
+            UBX-CFG-VALSET implementation and is not applied by the passive recorder.
+        type: bitmask
+        bit:
+          0: GPS
+          1: Galileo
+          2: BeiDou
+          3: GLONASS
+          4: QZSS
+          5: SBAS
+        default: 63
+        min: 0
+        max: 63
+        reboot_required: true
+      UBX_HPE_BANDS:
+        description:
+          short: GNSS signal bands
+          long: |
+            Signal-band enable mask to apply when receiver auto-configuration is enabled.
+            L1 includes L1/E1/B1/C1-class signals. L5 includes L5/E5/B2-class signals.
+            Additional bands are placeholders for receiver/firmware support and should only
+            be applied when mapped to concrete u-blox CFG-SIGNAL keys. This parameter is
+            defined now for the future UBX-CFG-VALSET implementation and is not applied by
+            the passive recorder.
+        type: bitmask
+        bit:
+          0: L1/E1/B1/C1
+          1: L5/E5/B2
+          2: L2/B2 legacy
+          3: E6/B3
+        default: 3
+        min: 0
+        max: 15
+        reboot_required: true
+      UBX_HPE_L5_HLT:
+        description:
+          short: L5 health handling
+          long: |
+            Selects how L5/E5/B2-class signal health should be handled by future parsing
+            summaries and receiver auto-configuration. Strict mode trusts receiver health
+            flags. Summary mode may keep L5-family measurements in raw capture and compact
+            diagnostics even when health is questionable, while preserving the original
+            health flags for downstream analysis. Selection mode is reserved for allowing
+            future driver-level measurement selection to ignore L5 health where supported.
+            The passive recorder does not apply this parameter yet.
+        type: enum
+        values:
+          0: Strict
+          1: Ignore for summaries
+          2: Ignore for selection
+        default: 0
+        reboot_required: true
       UBX_HPE_DUMP:
         description:
           short: Publish gps_dump
