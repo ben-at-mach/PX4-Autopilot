@@ -166,6 +166,12 @@ private:
 	bool _receiver_configured {false};
 	uint32_t _detected_baudrate {0};
 	uint32_t _requested_baudrate {230400};
+	uint16_t _meas_rate {100};
+	uint8_t _raw_rate {1};
+	uint8_t _sol_rate {1};
+	uint8_t _stat_rate {10};
+	uint8_t _span_rate {50};
+	uint8_t _sfrbx_rate {100};
 
 	device::Serial _uart {};
 	int _file_fd {-1};
@@ -214,6 +220,12 @@ UbxHpe::UbxHpe(const char *device, uint32_t baudrate, const char *output_path, b
 {
 	copy_string(_device, sizeof(_device), device);
 	copy_string(_output_path, sizeof(_output_path), output_path);
+	_meas_rate = static_cast<uint16_t>(get_int_param("UBX_HPE_RATE", 100));
+	_raw_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_RAW", 1));
+	_sol_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_SOL", 1));
+	_stat_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_STAT", 10));
+	_span_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_SPAN", 50));
+	_sfrbx_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_SFRBX", 100));
 }
 
 UbxHpe::~UbxHpe()
@@ -602,13 +614,12 @@ bool UbxHpe::configure_port_baudrate(uint32_t baudrate)
 
 bool UbxHpe::configure_global_receiver_rate()
 {
-	const uint16_t meas_rate = static_cast<uint16_t>(get_int_param("UBX_HPE_RATE", 100));
 	uint8_t payload[32] {};
 	size_t offset = 4;
 	payload[0] = 0;
 	payload[1] = 0x01;
 
-	return append_u16(payload, sizeof(payload), offset, cfg_key::CFG_RATE_MEAS, meas_rate)
+	return append_u16(payload, sizeof(payload), offset, cfg_key::CFG_RATE_MEAS, _meas_rate)
 	       && append_u16(payload, sizeof(payload), offset, cfg_key::CFG_RATE_NAV, 1)
 	       && append_u8(payload, sizeof(payload), offset, cfg_key::CFG_RATE_TIMEREF, 0)
 	       && send_cfg_valset(payload, offset, true);
@@ -616,42 +627,38 @@ bool UbxHpe::configure_global_receiver_rate()
 
 bool UbxHpe::configure_message_rates()
 {
-	const uint8_t raw_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_RAW", 1));
-	const uint8_t sol_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_SOL", 1));
-	const uint8_t stat_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_STAT", 10));
-	const uint8_t span_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_SPAN", 50));
-	const uint8_t sfrbx_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_SFRBX", 100));
 	uint8_t payload[96] {};
 	size_t offset = 4;
 	payload[0] = 0;
 	payload[1] = 0x01;
 	const ReceiverPort port = _receiver_port;
 
-	return append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_NAV_PVT_I2C, port), sol_rate)
+	return append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_NAV_PVT_I2C, port),
+			 _sol_rate)
 	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_NAV_RELPOSNED_I2C, port),
-			    sol_rate)
+			    _sol_rate)
 	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_RXM_RAWX_I2C, port),
-			    raw_rate)
+			    _raw_rate)
 	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_RXM_SFRBX_I2C, port),
-			    sfrbx_rate)
+			    _sfrbx_rate)
 	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_NAV_STATUS_I2C, port),
-			    stat_rate)
+			    _stat_rate)
 	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_NAV_SAT_I2C, port),
-			    stat_rate)
+			    _stat_rate)
 	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_NAV_CLOCK_I2C, port),
-			    stat_rate)
+			    _stat_rate)
 	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_NAV_SIG_I2C, port),
-			    stat_rate)
+			    _stat_rate)
 	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_RXM_COR_I2C, port),
-			    stat_rate)
+			    _stat_rate)
 	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_MON_COMMS_I2C, port),
-			    stat_rate)
+			    _stat_rate)
 	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_MON_RF_I2C, port),
-			    stat_rate)
+			    _stat_rate)
 	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_MON_SYS_I2C, port),
-			    stat_rate)
+			    _stat_rate)
 	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_MON_SPAN_I2C, port),
-			    span_rate)
+			    _span_rate)
 	       && send_cfg_valset(payload, offset, true);
 }
 
@@ -1088,6 +1095,8 @@ int UbxHpe::print_status()
 	PX4_INFO("receiver config: %s port=UART%u probe=%s configured=%s", _configure_receiver ? "enabled" : "disabled",
 		 _receiver_port == ReceiverPort::UART2 ? 2 : 1, _probe_baud ? "yes" : "no",
 		 _receiver_configured ? "yes" : "no");
+	PX4_INFO("receiver rates: meas=%ums raw=%u sol=%u stat=%u span=%u sfrbx=%u",
+		 (unsigned)_meas_rate, _raw_rate, _sol_rate, _stat_rate, _span_rate, _sfrbx_rate);
 	PX4_INFO("runtime: %.1fs", runtime_s);
 	PX4_INFO("bytes read: %llu", (unsigned long long)_bytes_read);
 	PX4_INFO("bytes written: %llu", (unsigned long long)_bytes_written);
@@ -1105,7 +1114,8 @@ int UbxHpe::print_status()
 	PX4_INFO("max write latency: %.3fms", (double)_max_write_latency / 1000.0);
 
 	if (_last_byte_time > 0) {
-		PX4_INFO("last byte: %.3fs ago", (double)(now - _last_byte_time) / 1e6);
+		const hrt_abstime last_byte_age = now > _last_byte_time ? now - _last_byte_time : 0;
+		PX4_INFO("last byte: %.3fs ago", (double)last_byte_age / 1e6);
 
 	} else {
 		PX4_INFO("last byte: never");
