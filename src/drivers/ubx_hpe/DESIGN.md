@@ -99,6 +99,24 @@ Rate configuration is grouped by message purpose instead of one flat output-rate
 - Status/health messages: lower-rate monitoring such as RF, spectrum/span, signal, jamming/spoofing, satellite, and receiver health/status messages.
 
 This gives us a clean way to tune bandwidth: raw and solution traffic can run fast, while diagnostic traffic stays informative without crowding the UART or SD-card recorder. The first implementation should define these groups in driver code as typed UBX `CFG-VALSET` recipes, using the `UBX_HPE_*` parameters above to select the receiver port, base measurement period, and message divisors.
+This gives us a clean way to tune bandwidth: raw and solution traffic can run fast, while diagnostic traffic stays informative without crowding the UART or SD-card recorder. The first implementation defines these groups in driver code as typed UBX `CFG-VALSET` recipes, using the `UBX_HPE_*` parameters above to select the receiver port, base measurement period, and message divisors.
+
+Global versus per-port configuration matters:
+
+- `CFG-RATE-MEAS`, `CFG-RATE-NAV`, and `CFG-RATE-TIMEREF` are global receiver settings and are only applied when `UBX_HPE_PORT=1`.
+- `CFG-MSGOUT-*` rates are per-output-port settings and are applied to the selected receiver UART for both `UBX_HPE_PORT=1` and `UBX_HPE_PORT=2`.
+- In the `UBX_HPE_PORT=2` case, message-output divisors are relative to whatever global measurement/navigation rate the UART1 owner has already configured.
+
+The first recipe applies the known PX4/u-blox keys for:
+
+- `CFG-RATE-MEAS`, `CFG-RATE-NAV`, and `CFG-RATE-TIMEREF` in the full-control `UBX_HPE_PORT=1` case.
+- `NAV-PVT` and `NAV-RELPOSNED` from `UBX_HPE_SOL`.
+- `RXM-RAWX` from `UBX_HPE_RAW`.
+- `RXM-SFRBX` from `UBX_HPE_SFRBX`.
+- `NAV-STATUS`, `NAV-SAT`, `NAV-CLOCK`, `NAV-SIG`, `RXM-COR`, `MON-COMMS`, `MON-RF`, and `MON-SYS` from `UBX_HPE_STAT`.
+- `MON-SPAN` from `UBX_HPE_SPAN`.
+
+X20P-specific diagnostics beyond the standard UBX messages above should be added after confirming exact key IDs on the receiver firmware.
 
 ## gps_dump Notes
 

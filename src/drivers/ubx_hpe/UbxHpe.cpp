@@ -63,7 +63,10 @@
 #include <uORB/Publication.hpp>
 #include <uORB/topics/gps_dump.h>
 
+#include "UbxHpeUbx.hpp"
+
 using namespace time_literals;
+using namespace ubx_hpe;
 
 class UbxHpe : public ModuleBase<UbxHpe>
 {
@@ -599,33 +602,24 @@ bool UbxHpe::configure_port_baudrate(uint32_t baudrate)
 
 bool UbxHpe::configure_global_receiver_rate()
 {
-	static constexpr uint32_t CFG_RATE_MEAS = 0x30210001;
-	static constexpr uint32_t CFG_RATE_NAV = 0x30210002;
-	static constexpr uint32_t CFG_RATE_TIMEREF = 0x20210003;
 	const uint16_t meas_rate = static_cast<uint16_t>(get_int_param("UBX_HPE_RATE", 100));
 	uint8_t payload[32] {};
 	size_t offset = 4;
 	payload[0] = 0;
 	payload[1] = 0x01;
 
-	return append_u16(payload, sizeof(payload), offset, CFG_RATE_MEAS, meas_rate)
-	       && append_u16(payload, sizeof(payload), offset, CFG_RATE_NAV, 1)
-	       && append_u8(payload, sizeof(payload), offset, CFG_RATE_TIMEREF, 0)
+	return append_u16(payload, sizeof(payload), offset, cfg_key::CFG_RATE_MEAS, meas_rate)
+	       && append_u16(payload, sizeof(payload), offset, cfg_key::CFG_RATE_NAV, 1)
+	       && append_u8(payload, sizeof(payload), offset, cfg_key::CFG_RATE_TIMEREF, 0)
 	       && send_cfg_valset(payload, offset, true);
 }
 
 bool UbxHpe::configure_message_rates()
 {
-	static constexpr uint32_t MSGOUT_NAV_SAT_I2C = 0x20910015;
-	static constexpr uint32_t MSGOUT_NAV_STATUS_I2C = 0x2091001a;
-	static constexpr uint32_t MSGOUT_NAV_PVT_I2C = 0x20910006;
-	static constexpr uint32_t MSGOUT_NAV_RELPOSNED_I2C = 0x2091008d;
-	static constexpr uint32_t MSGOUT_RXM_SFRBX_I2C = 0x20910231;
-	static constexpr uint32_t MSGOUT_RXM_RAWX_I2C = 0x209102a4;
-	static constexpr uint32_t MSGOUT_MON_RF_I2C = 0x20910359;
 	const uint8_t raw_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_RAW", 1));
 	const uint8_t sol_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_SOL", 1));
 	const uint8_t stat_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_STAT", 10));
+	const uint8_t span_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_SPAN", 50));
 	const uint8_t sfrbx_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_SFRBX", 100));
 	uint8_t payload[96] {};
 	size_t offset = 4;
@@ -633,13 +627,31 @@ bool UbxHpe::configure_message_rates()
 	payload[1] = 0x01;
 	const ReceiverPort port = _receiver_port;
 
-	return append_u8(payload, sizeof(payload), offset, msgout_key_for_port(MSGOUT_NAV_PVT_I2C, port), sol_rate)
-	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(MSGOUT_NAV_RELPOSNED_I2C, port), sol_rate)
-	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(MSGOUT_RXM_RAWX_I2C, port), raw_rate)
-	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(MSGOUT_RXM_SFRBX_I2C, port), sfrbx_rate)
-	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(MSGOUT_NAV_STATUS_I2C, port), stat_rate)
-	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(MSGOUT_NAV_SAT_I2C, port), stat_rate)
-	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(MSGOUT_MON_RF_I2C, port), stat_rate)
+	return append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_NAV_PVT_I2C, port), sol_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_NAV_RELPOSNED_I2C, port),
+			    sol_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_RXM_RAWX_I2C, port),
+			    raw_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_RXM_SFRBX_I2C, port),
+			    sfrbx_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_NAV_STATUS_I2C, port),
+			    stat_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_NAV_SAT_I2C, port),
+			    stat_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_NAV_CLOCK_I2C, port),
+			    stat_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_NAV_SIG_I2C, port),
+			    stat_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_RXM_COR_I2C, port),
+			    stat_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_MON_COMMS_I2C, port),
+			    stat_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_MON_RF_I2C, port),
+			    stat_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_MON_SYS_I2C, port),
+			    stat_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(cfg_key::MSGOUT_UBX_MON_SPAN_I2C, port),
+			    span_rate)
 	       && send_cfg_valset(payload, offset, true);
 }
 
