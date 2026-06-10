@@ -26,6 +26,35 @@ parameters:
           2: UART2
         default: 1
         reboot_required: true
+      UBX_HPE_CFG_ON:
+        description:
+          short: Configure receiver
+          long: |
+            Enable receiver auto-configuration before raw recording starts. When enabled, the
+            driver sends RAM-layer UBX-CFG-VALSET commands to configure the selected receiver
+            UART for UBX-only input/output and apply the selected UART's grouped message-output
+            parameters. Global receiver rate settings are only applied when UBX_HPE_PORT=1,
+            where PX4 is assumed to own the receiver. Disable this for pure passive capture.
+        type: int32
+        min: 0
+        max: 1
+        default: 1
+        reboot_required: true
+      UBX_HPE_PROBE:
+        description:
+          short: Probe receiver baud
+          long: |
+            Probe common u-blox baud rates when receiver auto-configuration is enabled. This
+            helps bring up UART1 when PX4 owns the receiver control/data port, and X20P UART2
+            when it may accept UBX commands at its factory 38400 baud even though UBX output
+            is disabled. If the PX4 serial baud parameter is 0, the driver keeps the detected
+            receiver baud. If it is nonzero, the driver moves the receiver UART to that requested
+            operational baud after probing.
+        type: int32
+        min: 0
+        max: 1
+        default: 1
+        reboot_required: true
       UBX_HPE_CONST:
         description:
           short: GNSS constellations
