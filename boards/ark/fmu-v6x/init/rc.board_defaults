@@ -19,6 +19,7 @@ param set-default SENS_EN_INA226 1
 # Start the u-blox HPE raw recorder on GPS1 by default and leave the
 # generic GPS driver disabled so both drivers do not claim /dev/ttyS0.
 param set-default UBX_HPE_CFG 201
+param set-default UBX_HPE_PORT 2
 param set-default GPS_1_CONFIG 0
 param set-default SER_GPS1_BAUD 230400
 
