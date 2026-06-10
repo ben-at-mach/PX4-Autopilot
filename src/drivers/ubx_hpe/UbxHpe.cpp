@@ -69,7 +69,7 @@ class UbxHpe : public ModuleBase<UbxHpe>
 {
 public:
 	UbxHpe(const char *device, uint32_t baudrate, const char *output_path, bool exclusive_log_file, bool publish_dump,
-	       uint8_t dump_instance);
+	       uint8_t dump_instance, uint8_t receiver_port, bool configure_receiver, bool probe_baud);
 	~UbxHpe() override;
 
 	static int task_spawn(int argc, char *argv[]);
@@ -86,6 +86,14 @@ private:
 	static constexpr int kReadTimeoutMs = 50;
 	static constexpr hrt_abstime kFsyncInterval = 5_s;
 	static constexpr hrt_abstime kStaleDataInterval = 5_s;
+	static constexpr hrt_abstime kAckTimeout = 2_s;
+	static constexpr uint32_t kFallbackBaudrate = 230400;
+	static constexpr uint8_t kUbxSync1 = 0xb5;
+	static constexpr uint8_t kUbxSync2 = 0x62;
+	static constexpr uint8_t kUbxClassAck = 0x05;
+	static constexpr uint8_t kUbxIdAckAck = 0x01;
+	static constexpr uint8_t kUbxClassCfg = 0x06;
+	static constexpr uint8_t kUbxIdCfgValset = 0x8a;
 	static constexpr const char *kDefaultOutputPath = "/fs/microsd/ubx_hpe.ubx";
 	static constexpr const char *kIncrementOutputPattern = "/fs/microsd/ubx_hpe_%03u.ubx";
 	static constexpr const char *kRealtimeOutputPattern = "/fs/microsd/ubx_hpe_%llu_%03lu.ubx";
@@ -96,13 +104,48 @@ private:
 		Realtime = 2,
 	};
 
+	enum class ReceiverPort : uint8_t {
+		UART1 = 1,
+		UART2 = 2,
+	};
+
+	struct PortKeys {
+		uint32_t baudrate;
+		uint32_t stopbits;
+		uint32_t databits;
+		uint32_t parity;
+		uint32_t inprot_ubx;
+		uint32_t inprot_nmea;
+		uint32_t inprot_rtcm3x;
+		uint32_t outprot_ubx;
+		uint32_t outprot_nmea;
+		uint32_t outprot_rtcm3x;
+	};
+
 	static bool copy_string(char *dst, size_t dst_len, const char *src);
 	static bool make_log_path(char *dst, size_t dst_len, LogNameMode mode, bool &exclusive);
 	static bool make_increment_log_path(char *dst, size_t dst_len, bool &exclusive);
 	static bool make_realtime_log_path(char *dst, size_t dst_len, bool &exclusive);
 	static int32_t get_int_param(const char *name, int32_t default_value);
+	static PortKeys port_keys(ReceiverPort port);
+	static uint32_t msgout_key_for_port(uint32_t i2c_key, ReceiverPort port);
+	static bool append_u8(uint8_t *payload, size_t payload_size, size_t &offset, uint32_t key, uint8_t value);
+	static bool append_u16(uint8_t *payload, size_t payload_size, size_t &offset, uint32_t key, uint16_t value);
+	static bool append_u32(uint8_t *payload, size_t payload_size, size_t &offset, uint32_t key, uint32_t value);
+	static bool add_baud_candidate(uint32_t *candidates, size_t max_count, size_t &count, uint32_t baudrate);
+	static void ubx_checksum(const uint8_t *data, size_t len, uint8_t &ck_a, uint8_t &ck_b);
 
 	int open_uart();
+	int open_uart_at(uint32_t baudrate);
+	int configure_receiver();
+	bool try_configure_at_baud(uint32_t baudrate);
+	bool configure_port_protocol();
+	bool configure_port_baudrate(uint32_t baudrate);
+	bool configure_global_receiver_rate();
+	bool configure_message_rates();
+	bool send_cfg_valset(const uint8_t *payload, size_t len, bool wait_ack);
+	bool send_ubx(uint8_t msg_class, uint8_t msg_id, const uint8_t *payload, size_t len);
+	bool wait_for_ack(uint8_t msg_class, uint8_t msg_id, hrt_abstime timeout);
 	int open_log_file();
 	void close_files();
 	void publish_gps_dump(const uint8_t *data, size_t len);
@@ -114,6 +157,12 @@ private:
 	bool _exclusive_log_file {false};
 	bool _publish_dump {true};
 	uint8_t _dump_instance {2};
+	ReceiverPort _receiver_port {ReceiverPort::UART1};
+	bool _configure_receiver {true};
+	bool _probe_baud {true};
+	bool _receiver_configured {false};
+	uint32_t _detected_baudrate {0};
+	uint32_t _requested_baudrate {230400};
 
 	device::Serial _uart {};
 	int _file_fd {-1};
@@ -150,11 +199,15 @@ private:
 };
 
 UbxHpe::UbxHpe(const char *device, uint32_t baudrate, const char *output_path, bool exclusive_log_file,
-	       bool publish_dump, uint8_t dump_instance) :
+	       bool publish_dump, uint8_t dump_instance, uint8_t receiver_port, bool configure_receiver, bool probe_baud) :
 	_baudrate(baudrate),
 	_exclusive_log_file(exclusive_log_file),
 	_publish_dump(publish_dump),
-	_dump_instance(dump_instance)
+	_dump_instance(dump_instance),
+	_receiver_port(receiver_port == 2 ? ReceiverPort::UART2 : ReceiverPort::UART1),
+	_configure_receiver(configure_receiver),
+	_probe_baud(probe_baud),
+	_requested_baudrate(baudrate)
 {
 	copy_string(_device, sizeof(_device), device);
 	copy_string(_output_path, sizeof(_output_path), output_path);
@@ -250,13 +303,36 @@ bool UbxHpe::make_log_path(char *dst, size_t dst_len, LogNameMode mode, bool &ex
 
 int UbxHpe::open_uart()
 {
+	if (_configure_receiver && configure_receiver() == PX4_OK) {
+		return PX4_OK;
+	}
+
+	if (_configure_receiver) {
+		PX4_WARN("receiver auto-config failed, continuing passive capture");
+	}
+
+	const uint32_t passive_baudrate = _requested_baudrate == 0 ? kFallbackBaudrate : _requested_baudrate;
+
+	if (_requested_baudrate == 0) {
+		PX4_WARN("baud parameter is 0, passive fallback uses %lu", (unsigned long)passive_baudrate);
+	}
+
+	return open_uart_at(passive_baudrate);
+}
+
+int UbxHpe::open_uart_at(uint32_t baudrate)
+{
+	if (_uart.isOpen()) {
+		_uart.close();
+	}
+
 	if (!_uart.setPort(_device)) {
 		PX4_ERR("invalid serial device %s", _device);
 		return PX4_ERROR;
 	}
 
-	if (!_uart.setBaudrate(_baudrate)) {
-		PX4_ERR("failed to set baudrate %lu on %s", (unsigned long)_baudrate, _device);
+	if (!_uart.setBaudrate(baudrate)) {
+		PX4_ERR("failed to set baudrate %lu on %s", (unsigned long)baudrate, _device);
 		return PX4_ERROR;
 	}
 
@@ -265,8 +341,410 @@ int UbxHpe::open_uart()
 		return PX4_ERROR;
 	}
 
+	_baudrate = baudrate;
+	_uart.flush();
+	return PX4_OK;
+}
+
+
+UbxHpe::PortKeys UbxHpe::port_keys(ReceiverPort port)
+{
+	if (port == ReceiverPort::UART2) {
+		return {0x40530001, 0x20530002, 0x20530003, 0x20530004, 0x10750001,
+			0x10750002, 0x10750004, 0x10760001, 0x10760002, 0x10760004};
+	}
+
+	return {0x40520001, 0x20520002, 0x20520003, 0x20520004, 0x10730001,
+		0x10730002, 0x10730004, 0x10740001, 0x10740002, 0x10740004};
+}
+
+uint32_t UbxHpe::msgout_key_for_port(uint32_t i2c_key, ReceiverPort port)
+{
+	return i2c_key + (port == ReceiverPort::UART2 ? 2 : 1);
+}
+
+bool UbxHpe::append_u8(uint8_t *payload, size_t payload_size, size_t &offset, uint32_t key, uint8_t value)
+{
+	if (offset + sizeof(key) + sizeof(value) > payload_size) {
+		return false;
+	}
+
+	memcpy(payload + offset, &key, sizeof(key));
+	offset += sizeof(key);
+	memcpy(payload + offset, &value, sizeof(value));
+	offset += sizeof(value);
+	return true;
+}
+
+bool UbxHpe::append_u16(uint8_t *payload, size_t payload_size, size_t &offset, uint32_t key, uint16_t value)
+{
+	if (offset + sizeof(key) + sizeof(value) > payload_size) {
+		return false;
+	}
+
+	memcpy(payload + offset, &key, sizeof(key));
+	offset += sizeof(key);
+	memcpy(payload + offset, &value, sizeof(value));
+	offset += sizeof(value);
+	return true;
+}
+
+bool UbxHpe::append_u32(uint8_t *payload, size_t payload_size, size_t &offset, uint32_t key, uint32_t value)
+{
+	if (offset + sizeof(key) + sizeof(value) > payload_size) {
+		return false;
+	}
+
+	memcpy(payload + offset, &key, sizeof(key));
+	offset += sizeof(key);
+	memcpy(payload + offset, &value, sizeof(value));
+	offset += sizeof(value);
+	return true;
+}
+
+bool UbxHpe::add_baud_candidate(uint32_t *candidates, size_t max_count, size_t &count, uint32_t baudrate)
+{
+	if (baudrate == 0) {
+		return true;
+	}
+
+	for (size_t i = 0; i < count; ++i) {
+		if (candidates[i] == baudrate) {
+			return true;
+		}
+	}
+
+	if (count >= max_count) {
+		return false;
+	}
+
+	candidates[count++] = baudrate;
+	return true;
+}
+
+void UbxHpe::ubx_checksum(const uint8_t *data, size_t len, uint8_t &ck_a, uint8_t &ck_b)
+{
+	ck_a = 0;
+	ck_b = 0;
+
+	for (size_t i = 0; i < len; ++i) {
+		ck_a = static_cast<uint8_t>(ck_a + data[i]);
+		ck_b = static_cast<uint8_t>(ck_b + ck_a);
+	}
+}
+
+bool UbxHpe::send_ubx(uint8_t msg_class, uint8_t msg_id, const uint8_t *payload, size_t len)
+{
+	uint8_t header[6] {kUbxSync1, kUbxSync2, msg_class, msg_id, static_cast<uint8_t>(len & 0xff),
+			   static_cast<uint8_t>((len >> 8) & 0xff)
+			  };
+	uint8_t checksum_input[260] {};
+
+	if (len > sizeof(checksum_input) - 4) {
+		return false;
+	}
+
+	memcpy(checksum_input, &header[2], 4);
+
+	if (len > 0) {
+		memcpy(checksum_input + 4, payload, len);
+	}
+
+	uint8_t ck_a = 0;
+	uint8_t ck_b = 0;
+	ubx_checksum(checksum_input, len + 4, ck_a, ck_b);
+
+	if (_uart.write(header, sizeof(header)) != (ssize_t)sizeof(header)) {
+		return false;
+	}
+
+	if (len > 0 && _uart.write(payload, len) != (ssize_t)len) {
+		return false;
+	}
+
+	const uint8_t checksum[2] {ck_a, ck_b};
+	return _uart.write(checksum, sizeof(checksum)) == (ssize_t)sizeof(checksum);
+}
+
+bool UbxHpe::wait_for_ack(uint8_t msg_class, uint8_t msg_id, hrt_abstime timeout)
+{
+	enum class State : uint8_t { Sync1, Sync2, Header, Payload, ChecksumA, ChecksumB };
+	State state = State::Sync1;
+	uint8_t header[4] {};
+	uint8_t payload[64] {};
+	size_t header_pos = 0;
+	size_t payload_pos = 0;
+	uint16_t payload_len = 0;
+	uint8_t ck_a = 0;
+	uint8_t ck_b = 0;
+	const hrt_abstime start = hrt_absolute_time();
+
+	while (hrt_elapsed_time(&start) < timeout) {
+		uint8_t byte = 0;
+		const ssize_t nread = _uart.readAtLeast(&byte, 1, 1, 20);
+
+		if (nread <= 0) {
+			continue;
+		}
+
+		switch (state) {
+		case State::Sync1:
+			state = byte == kUbxSync1 ? State::Sync2 : State::Sync1;
+			break;
+
+		case State::Sync2:
+			state = byte == kUbxSync2 ? State::Header : State::Sync1;
+			header_pos = 0;
+			break;
+
+		case State::Header:
+			header[header_pos++] = byte;
+
+			if (header_pos == sizeof(header)) {
+				payload_len = static_cast<uint16_t>(header[2] | (header[3] << 8));
+				payload_pos = 0;
+
+				if (payload_len > sizeof(payload)) {
+					state = State::Sync1;
+
+				} else if (payload_len == 0) {
+					state = State::ChecksumA;
+
+				} else {
+					state = State::Payload;
+				}
+			}
+
+			break;
+
+		case State::Payload:
+			payload[payload_pos++] = byte;
+
+			if (payload_pos >= payload_len) {
+				state = State::ChecksumA;
+			}
+
+			break;
+
+		case State::ChecksumA:
+			ck_a = byte;
+			state = State::ChecksumB;
+			break;
+
+		case State::ChecksumB: {
+				ck_b = byte;
+				uint8_t checksum_input[68] {};
+				memcpy(checksum_input, header, sizeof(header));
+
+				if (payload_len > 0) {
+					memcpy(checksum_input + sizeof(header), payload, payload_len);
+				}
+
+				uint8_t expected_a = 0;
+				uint8_t expected_b = 0;
+				ubx_checksum(checksum_input, sizeof(header) + payload_len, expected_a, expected_b);
+
+				if (ck_a == expected_a && ck_b == expected_b && header[0] == kUbxClassAck && payload_len == 2
+				    && payload[0] == msg_class && payload[1] == msg_id) {
+					return header[1] == kUbxIdAckAck;
+				}
+
+				state = State::Sync1;
+				break;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool UbxHpe::send_cfg_valset(const uint8_t *payload, size_t len, bool wait_ack)
+{
+	if (!send_ubx(kUbxClassCfg, kUbxIdCfgValset, payload, len)) {
+		return false;
+	}
+
+	return !wait_ack || wait_for_ack(kUbxClassCfg, kUbxIdCfgValset, kAckTimeout);
+}
+
+bool UbxHpe::configure_port_protocol()
+{
+	uint8_t payload[96] {};
+	size_t offset = 4;
+	payload[0] = 0;    // version
+	payload[1] = 0x01; // RAM layer only: do not persist bench bring-up changes.
+	const PortKeys keys = port_keys(_receiver_port);
+
+	return append_u8(payload, sizeof(payload), offset, keys.stopbits, 1)
+	       && append_u8(payload, sizeof(payload), offset, keys.databits, 0)
+	       && append_u8(payload, sizeof(payload), offset, keys.parity, 0)
+	       && append_u8(payload, sizeof(payload), offset, keys.inprot_ubx, 1)
+	       && append_u8(payload, sizeof(payload), offset, keys.inprot_nmea, 0)
+	       && append_u8(payload, sizeof(payload), offset, keys.inprot_rtcm3x, 0)
+	       && append_u8(payload, sizeof(payload), offset, keys.outprot_ubx, 1)
+	       && append_u8(payload, sizeof(payload), offset, keys.outprot_nmea, 0)
+	       && append_u8(payload, sizeof(payload), offset, keys.outprot_rtcm3x, 0)
+	       && send_cfg_valset(payload, offset, true);
+}
+
+bool UbxHpe::configure_port_baudrate(uint32_t baudrate)
+{
+	uint8_t payload[16] {};
+	size_t offset = 4;
+	payload[0] = 0;
+	payload[1] = 0x01;
+	return append_u32(payload, sizeof(payload), offset, port_keys(_receiver_port).baudrate, baudrate)
+	       && send_cfg_valset(payload, offset, false);
+}
+
+bool UbxHpe::configure_global_receiver_rate()
+{
+	static constexpr uint32_t CFG_RATE_MEAS = 0x30210001;
+	static constexpr uint32_t CFG_RATE_NAV = 0x30210002;
+	static constexpr uint32_t CFG_RATE_TIMEREF = 0x20210003;
+	const uint16_t meas_rate = static_cast<uint16_t>(get_int_param("UBX_HPE_RATE", 100));
+	uint8_t payload[32] {};
+	size_t offset = 4;
+	payload[0] = 0;
+	payload[1] = 0x01;
+
+	return append_u16(payload, sizeof(payload), offset, CFG_RATE_MEAS, meas_rate)
+	       && append_u16(payload, sizeof(payload), offset, CFG_RATE_NAV, 1)
+	       && append_u8(payload, sizeof(payload), offset, CFG_RATE_TIMEREF, 0)
+	       && send_cfg_valset(payload, offset, true);
+}
+
+bool UbxHpe::configure_message_rates()
+{
+	static constexpr uint32_t MSGOUT_NAV_SAT_I2C = 0x20910015;
+	static constexpr uint32_t MSGOUT_NAV_STATUS_I2C = 0x2091001a;
+	static constexpr uint32_t MSGOUT_NAV_PVT_I2C = 0x20910006;
+	static constexpr uint32_t MSGOUT_NAV_RELPOSNED_I2C = 0x2091008d;
+	static constexpr uint32_t MSGOUT_RXM_SFRBX_I2C = 0x20910231;
+	static constexpr uint32_t MSGOUT_RXM_RAWX_I2C = 0x209102a4;
+	static constexpr uint32_t MSGOUT_MON_RF_I2C = 0x20910359;
+	const uint8_t raw_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_RAW", 1));
+	const uint8_t sol_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_SOL", 1));
+	const uint8_t stat_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_STAT", 10));
+	const uint8_t sfrbx_rate = static_cast<uint8_t>(get_int_param("UBX_HPE_SFRBX", 100));
+	uint8_t payload[96] {};
+	size_t offset = 4;
+	payload[0] = 0;
+	payload[1] = 0x01;
+	const ReceiverPort port = _receiver_port;
+
+	return append_u8(payload, sizeof(payload), offset, msgout_key_for_port(MSGOUT_NAV_PVT_I2C, port), sol_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(MSGOUT_NAV_RELPOSNED_I2C, port), sol_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(MSGOUT_RXM_RAWX_I2C, port), raw_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(MSGOUT_RXM_SFRBX_I2C, port), sfrbx_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(MSGOUT_NAV_STATUS_I2C, port), stat_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(MSGOUT_NAV_SAT_I2C, port), stat_rate)
+	       && append_u8(payload, sizeof(payload), offset, msgout_key_for_port(MSGOUT_MON_RF_I2C, port), stat_rate)
+	       && send_cfg_valset(payload, offset, true);
+}
+
+bool UbxHpe::try_configure_at_baud(uint32_t baudrate)
+{
+	if (open_uart_at(baudrate) != PX4_OK) {
+		return false;
+	}
+
+	// Give any in-flight NMEA/RTCM bytes a moment to drain before the ACK probe.
+	px4_usleep(20000);
 	_uart.flush();
 
+	if (!configure_port_protocol()) {
+		return false;
+	}
+
+	_detected_baudrate = baudrate;
+	_receiver_configured = true;
+	PX4_INFO("receiver responded at %lu baud", (unsigned long)baudrate);
+	return true;
+}
+
+int UbxHpe::configure_receiver()
+{
+	uint32_t candidates[8] {};
+	size_t candidate_count = 0;
+	bool configured = false;
+
+	if (_probe_baud) {
+		add_baud_candidate(candidates, sizeof(candidates) / sizeof(candidates[0]), candidate_count, _requested_baudrate);
+
+		if (_receiver_port == ReceiverPort::UART1) {
+			add_baud_candidate(candidates, sizeof(candidates) / sizeof(candidates[0]), candidate_count, 38400);
+			add_baud_candidate(candidates, sizeof(candidates) / sizeof(candidates[0]), candidate_count, 9600);
+			add_baud_candidate(candidates, sizeof(candidates) / sizeof(candidates[0]), candidate_count, 115200);
+			add_baud_candidate(candidates, sizeof(candidates) / sizeof(candidates[0]), candidate_count, 230400);
+			add_baud_candidate(candidates, sizeof(candidates) / sizeof(candidates[0]), candidate_count, 460800);
+			add_baud_candidate(candidates, sizeof(candidates) / sizeof(candidates[0]), candidate_count, 921600);
+			add_baud_candidate(candidates, sizeof(candidates) / sizeof(candidates[0]), candidate_count, 57600);
+
+		} else {
+			add_baud_candidate(candidates, sizeof(candidates) / sizeof(candidates[0]), candidate_count, 38400);
+			add_baud_candidate(candidates, sizeof(candidates) / sizeof(candidates[0]), candidate_count, 230400);
+			add_baud_candidate(candidates, sizeof(candidates) / sizeof(candidates[0]), candidate_count, 115200);
+			add_baud_candidate(candidates, sizeof(candidates) / sizeof(candidates[0]), candidate_count, 57600);
+			add_baud_candidate(candidates, sizeof(candidates) / sizeof(candidates[0]), candidate_count, 9600);
+			add_baud_candidate(candidates, sizeof(candidates) / sizeof(candidates[0]), candidate_count, 460800);
+			add_baud_candidate(candidates, sizeof(candidates) / sizeof(candidates[0]), candidate_count, 921600);
+		}
+
+	} else {
+		add_baud_candidate(candidates, sizeof(candidates) / sizeof(candidates[0]), candidate_count,
+				   _requested_baudrate == 0 ? kFallbackBaudrate : _requested_baudrate);
+	}
+
+	for (size_t i = 0; i < candidate_count; ++i) {
+		const uint32_t candidate = candidates[i];
+
+		if (candidate == 0) {
+			continue;
+		}
+
+		PX4_INFO("auto-baud receiver %s at %lu baud", _receiver_port == ReceiverPort::UART2 ? "UART2" : "UART1",
+			 (unsigned long)candidate);
+
+		if (try_configure_at_baud(candidate)) {
+			configured = true;
+			break;
+		}
+	}
+
+	if (!configured) {
+		return PX4_ERROR;
+	}
+
+	if (_requested_baudrate != 0 && _detected_baudrate != _requested_baudrate) {
+		PX4_INFO("setting receiver port baud to %lu", (unsigned long)_requested_baudrate);
+		configure_port_baudrate(_requested_baudrate);
+		px4_usleep(100000);
+
+		if (open_uart_at(_requested_baudrate) != PX4_OK) {
+			return PX4_ERROR;
+		}
+
+	} else if (_requested_baudrate == 0) {
+		PX4_INFO("keeping detected receiver baud %lu", (unsigned long)_detected_baudrate);
+	}
+
+	if (_receiver_port == ReceiverPort::UART1) {
+		if (!configure_global_receiver_rate()) {
+			PX4_WARN("global receiver-rate config failed");
+			return PX4_ERROR;
+		}
+
+	} else {
+		PX4_INFO("leaving global receiver rate unchanged on UART2 side port");
+	}
+
+	if (!configure_message_rates()) {
+		PX4_WARN("message-output config failed");
+		return PX4_ERROR;
+	}
+
+	PX4_INFO("configured receiver %s for UBX-only output", _receiver_port == ReceiverPort::UART2 ? "UART2" : "UART1");
 	return PX4_OK;
 }
 
@@ -486,6 +964,9 @@ UbxHpe *UbxHpe::instantiate(int argc, char *argv[])
 	const bool log_file = get_int_param("UBX_HPE_FILE", 1) != 0;
 	int32_t dump_instance = get_int_param("UBX_HPE_DUMP_I", 2);
 	int32_t log_name_mode = get_int_param("UBX_HPE_FNAME", static_cast<int32_t>(LogNameMode::Increment));
+	int32_t receiver_port = get_int_param("UBX_HPE_PORT", 1);
+	const bool configure_receiver = get_int_param("UBX_HPE_CFG_ON", 1) != 0;
+	const bool probe_baud = get_int_param("UBX_HPE_PROBE", 1) != 0;
 
 	if (log_name_mode < static_cast<int32_t>(LogNameMode::Fixed) ||
 	    log_name_mode > static_cast<int32_t>(LogNameMode::Realtime)) {
@@ -542,8 +1023,12 @@ UbxHpe *UbxHpe::instantiate(int argc, char *argv[])
 		dump_instance = UINT8_MAX;
 	}
 
+	if (receiver_port != 1 && receiver_port != 2) {
+		receiver_port = 1;
+	}
+
 	UbxHpe *instance = new UbxHpe(device, baudrate, output_path, exclusive_log_file, publish_dump,
-				      static_cast<uint8_t>(dump_instance));
+				      static_cast<uint8_t>(dump_instance), static_cast<uint8_t>(receiver_port), configure_receiver, probe_baud);
 
 	if (instance == nullptr) {
 		PX4_ERR("alloc failed");
@@ -583,10 +1068,14 @@ int UbxHpe::print_status()
 	const double dump_rate = runtime_s > 0.0 ? (double)_dump_messages / runtime_s : 0.0;
 
 	PX4_INFO("device: %s", _device);
-	PX4_INFO("baudrate: %lu", (unsigned long)_baudrate);
+	PX4_INFO("baudrate: %lu requested=%lu detected=%lu", (unsigned long)_baudrate,
+		 (unsigned long)_requested_baudrate, (unsigned long)_detected_baudrate);
 	PX4_INFO("uart open: %s", _uart.isOpen() ? "yes" : "no");
 	PX4_INFO("output: %s%s", _output_path[0] ? _output_path : "disabled", _exclusive_log_file ? " (exclusive)" : "");
 	PX4_INFO("gps_dump: %s instance=%u", _publish_dump ? "enabled" : "disabled", _dump_instance);
+	PX4_INFO("receiver config: %s port=UART%u probe=%s configured=%s", _configure_receiver ? "enabled" : "disabled",
+		 _receiver_port == ReceiverPort::UART2 ? 2 : 1, _probe_baud ? "yes" : "no",
+		 _receiver_configured ? "yes" : "no");
 	PX4_INFO("runtime: %.1fs", runtime_s);
 	PX4_INFO("bytes read: %llu", (unsigned long long)_bytes_read);
 	PX4_INFO("bytes written: %llu", (unsigned long long)_bytes_written);
@@ -633,11 +1122,11 @@ int UbxHpe::print_usage(const char *reason)
 Passive raw UART recorder for u-blox HPE receivers such as ZED-X20P and ZED-F9P.
 
 The first revision records receiver bytes to a `.ubx` file and publishes the same incoming bytes on
-PX4's existing `gps_dump` uORB topic. It does not configure or parse the receiver yet.
+PX4's existing `gps_dump` uORB topic. It can optionally probe baud rates and configure the selected receiver UART for UBX output before recording.
 )DESCR_STR");
 
 	PRINT_MODULE_USAGE_NAME("ubx_hpe", "driver");
-	PRINT_MODULE_USAGE_COMMAND_DESCR("start", "Start passive UBX recording");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("start", "Start UBX receiver bring-up and recording");
 	PRINT_MODULE_USAGE_PARAM_STRING('d', "/dev/ttyS3", "<file:dev>", "UART device", true);
 	PRINT_MODULE_USAGE_PARAM_INT('b', 230400, 9600, 4000000, "UART baudrate", true);
 	PRINT_MODULE_USAGE_PARAM_STRING('o', kDefaultOutputPath, "<file>", "Override output .ubx path, empty disables file logging", true);
