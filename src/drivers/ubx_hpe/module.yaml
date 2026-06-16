@@ -8,8 +8,8 @@ serial_config:
       default: GPS1
     label: u-blox HPE receiver
 
-documentation:
-  description: Raw UART recorder for u-blox HPE receivers. Initial support captures bytes to SD and/or gps_dump.
+#documentation:
+#  description: Raw UART recorder for u-blox HPE receivers. Initial support captures bytes to SD and/or gps_dump.
 
 parameters:
   - group: GPS
