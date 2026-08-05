@@ -128,6 +128,17 @@ parameters:
       min: 0
       max: 6
       reboot_required: true
+    GPS_UBX_BAUD1:
+      description:
+        short: u-blox desired UART1 Baudrate
+        long: |-
+          Select a desired baudrate for the UBX HPE UART1 port. driver will try to negotiate this separate
+          from the ubx hpe module uart1 bbr config.
+      type: int32
+      default: 921600
+      min: 0
+      unit: B/s
+      reboot_required: true
     GPS_UBX_BAUD2:
       description:
         short: u-blox F9P UART2 Baudrate
