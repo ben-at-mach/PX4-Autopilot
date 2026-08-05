@@ -61,6 +61,7 @@ UavcanGnssBridge::UavcanGnssBridge(uavcan::INode &node, NodeInfoPublisher *node_
 	_sub_fix2(node),
 	_sub_gnss_heading(node),
 	_sub_moving_baseline_data(node),
+	_sub_gps_dump(node),
 	_pub_moving_baseline_data(node),
 	_pub_rtcm_stream(node),
 	_channel_using_fix2(new bool[_max_channels])
@@ -138,6 +139,15 @@ UavcanGnssBridge::init()
 	if (uavcan_sub_mbd == 1) {
 		res = _sub_moving_baseline_data.start(MovingBaselineDataCbBinder(this, &UavcanGnssBridge::moving_baseline_data_sub_cb));
 		_moving_baseline_data_sub_perf = perf_alloc(PC_INTERVAL, "uavcan: gnss: moving baseline data rtcm stream sub");
+	}
+
+	// UAVCAN_SUB_DUMP
+	int32_t uavcan_sub_dump = 0;
+	param_get(param_find("UAVCAN_SUB_DUMP"), &uavcan_sub_dump);
+
+	if (uavcan_sub_dump == 1) {
+		res = _sub_gps_dump.start(GpsDumpCbBinder(this, &UavcanGnssBridge::gps_dump_sub_cb));
+		_gps_dump_sub_perf = perf_alloc(PC_INTERVAL, "uavcan: gnss: gps_dump ubx stream sub");
 	}
 
 	return res;
@@ -378,6 +388,40 @@ void UavcanGnssBridge::moving_baseline_data_sub_cb(const
 		device_id.devid_s.devtype = DRV_GPS_DEVTYPE_UAVCAN;
 
 		dump.instance = 0; // TODO: How can we determine the instance? Startup order of CANnodes is non-deterministic.
+		dump.device_id = device_id.devid;
+
+		size_t remaining = total_bytes - written;
+		size_t write_len = remaining < sizeof(dump.data) ? remaining : sizeof(dump.data);
+
+		memcpy(dump.data, msg.data.begin() + written, write_len);
+		dump.len = write_len;
+		dump.len &= 0x7F; // MSB of len is direction - 0 is from the device
+
+		written += write_len;
+
+		_gps_dump_pub.publish(dump);
+	}
+}
+
+void UavcanGnssBridge::gps_dump_sub_cb(const
+		uavcan::ReceivedDataStructure<uavcan::equipment::gnss::GpsDump> &msg)
+{
+	perf_count(_gps_dump_sub_perf);
+
+	size_t total_bytes = msg.data.size();
+	size_t written = 0;
+
+	while (written < total_bytes) {
+		gps_dump_s dump = {};
+		dump.timestamp = hrt_absolute_time();
+
+		DeviceId device_id = {};
+		device_id.devid_s.bus_type = DeviceBusType::DeviceBusType_UAVCAN;
+		device_id.devid_s.bus = 0;
+		device_id.devid_s.address = msg.getSrcNodeID().get() & 0xFF;
+		device_id.devid_s.devtype = DRV_GPS_DEVTYPE_UAVCAN;
+
+		dump.instance = 3; // TODO: Just hardcode to not be 0/1?
 		dump.device_id = device_id.devid;
 
 		size_t remaining = total_bytes - written;

@@ -294,3 +294,12 @@ parameters:
       type: boolean
       default: 0
       reboot_required: true
+    UAVCAN_SUB_DUMP:
+      description:
+        short: subscription GpsDump Data
+        long: |-
+          Enable UAVCAN GpsDump Data subscription.
+          uavcan::equipment::gnss::GpsDump
+      type: boolean
+      default: 0
+      reboot_required: true

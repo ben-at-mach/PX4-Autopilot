@@ -119,9 +119,11 @@ extern "C" __attribute__((weak)) const char *board_get_uavcan_hw_name(void)
 #if defined(CONFIG_UAVCANNODE_RTK_DATA)
 #include "Publishers/RelPosHeading.hpp"
 #include "Publishers/MovingBaselineData.hpp"
+#include "Publishers/GpsDumpData.hpp"
 
 #include "Subscribers/MovingBaselineData.hpp"
 #include "Subscribers/RTCMStream.hpp"
+#include "Subscribers/GpsDumpData.hpp"
 #endif // CONFIG_UAVCANNODE_RTK_DATA
 
 #if defined(CONFIG_UAVCANNODE_SERVO_ARRAY_COMMAND)
@@ -433,7 +435,13 @@ int UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events
 		_publisher_list.add(new MovingBaselineDataPub(this, _node));
 	}
 
-#endif // CONFIG_UAVCANNODE_RTK_DATA
+	int32_t cannode_pub_dump = 0;
+	param_get(param_find("CANNODE_PUB_DUMP"), &cannode_pub_dump);
+	if (cannode_pub_dump == 1) {
+		_publisher_list.add(new GpsDumpPub(this, _node));
+	}
+
+	#endif // CONFIG_UAVCANNODE_RTK_DATA
 
 #if defined(CONFIG_UAVCANNODE_SAFETY_BUTTON)
 	_publisher_list.add(new SafetyButton(this, _node));
@@ -489,6 +497,13 @@ int UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events
 
 	if (cannode_sub_rtcm == 1) {
 		_subscriber_list.add(new RTCMStream(_node));
+	}
+
+	int32_t cannode_sub_dump = 0;
+	param_get(param_find("CANNODE_SUB_DUMP"), &cannode_sub_dump);
+
+	if (cannode_sub_dump == 1) {
+		_subscriber_list.add(new GpsDumpData(_node));
 	}
 
 #endif // CONFIG_UAVCANNODE_RTK_DATA

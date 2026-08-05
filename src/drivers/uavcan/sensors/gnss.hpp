@@ -60,6 +60,7 @@
 #include <ardupilot/gnss/MovingBaselineData.hpp>
 #include <ardupilot/gnss/RelPosHeading.hpp>
 #include <uavcan/equipment/gnss/RTCMStream.hpp>
+#include <uavcan/equipment/gnss/GpsDump.hpp>
 
 #include <lib/perf/perf_counter.h>
 
@@ -90,6 +91,7 @@ private:
 	void gnss_fix2_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Fix2> &msg);
 	void gnss_relative_sub_cb(const uavcan::ReceivedDataStructure<ardupilot::gnss::RelPosHeading> &msg);
 	void moving_baseline_data_sub_cb(const uavcan::ReceivedDataStructure<ardupilot::gnss::MovingBaselineData> &msg);
+	void gps_dump_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::GpsDump> &msg);
 
 
 	template <typename FixType>
@@ -132,6 +134,10 @@ private:
 		void (UavcanGnssBridge::*)(const uavcan::ReceivedDataStructure<ardupilot::gnss::MovingBaselineData> &) >
 		MovingBaselineDataCbBinder;
 
+	typedef uavcan::MethodBinder < UavcanGnssBridge *,
+		void (UavcanGnssBridge::*)(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::GpsDump> &) >
+		GpsDumpCbBinder;
+
 	uavcan::INode &_node;
 
 	uavcan::Subscriber<uavcan::equipment::gnss::Auxiliary, AuxiliaryCbBinder> _sub_auxiliary;
@@ -141,6 +147,9 @@ private:
 
 	// Used for MSM7 logging for PPK workflows
 	uavcan::Subscriber<ardupilot::gnss::MovingBaselineData, MovingBaselineDataCbBinder> _sub_moving_baseline_data;
+
+	// Expose raw ubx msg workflows
+	uavcan::Subscriber<uavcan::equipment::gnss::GpsDump, GpsDumpCbBinder> _sub_gps_dump;
 
 	uavcan::Publisher<ardupilot::gnss::MovingBaselineData> _pub_moving_baseline_data;
 	uavcan::Publisher<uavcan::equipment::gnss::RTCMStream> _pub_rtcm_stream;
@@ -181,6 +190,7 @@ private:
 	perf_counter_t _rtcm_stream_pub_perf{nullptr};
 	perf_counter_t _moving_baseline_data_pub_perf{nullptr};
 	perf_counter_t _moving_baseline_data_sub_perf{nullptr};
+	perf_counter_t _gps_dump_sub_perf{nullptr};
 
 	hrt_abstime _last_rate_measurement{0};
 	float _rtcm_injection_rate{0.f}; ///< fixed-base corrections injection rate (Hz); moving-baseline tracked via _moving_baseline_data_pub_perf

@@ -39,9 +39,22 @@ parameters:
       type: boolean
       default: 0
       reboot_required: true
+    CANNODE_SUB_DUMP:
+      description:
+        short: Enable GpsDump subscription
+      type: boolean
+      default: 0
+      max: 1
+      reboot_required: true
     CANNODE_PUB_MBD:
       description:
         short: Enable MovingBaselineData publication
+      type: boolean
+      default: 0
+      reboot_required: true
+    CANNODE_PUB_DUMP:
+      description:
+        short: Enable GpsDump publication
       type: boolean
       default: 0
       reboot_required: true

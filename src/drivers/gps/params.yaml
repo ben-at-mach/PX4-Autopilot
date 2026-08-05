@@ -161,6 +161,12 @@ parameters:
       type: boolean
       default: 0
       reboot_required: true
+    GPS_UBX_RAW:
+      description:
+        short: Enable RAWX + SRBF + SIG ... in gps_dump for QA or PPK workflows
+      type: boolean
+      default: 0
+      reboot_required: true
     GPS_UBX_JAM_DET:
       description:
         short: u-blox GPS jamming detection high sensitivity mode
