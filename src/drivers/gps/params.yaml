@@ -128,6 +128,26 @@ parameters:
       min: 0
       max: 6
       reboot_required: true
+    GPS_RTCM_ID_IN:
+      description:
+        short: ID of RTCM msg source to accept. all if 0
+        long: |-
+          ID of RTCM msg source to accept. all if 0. Sets DF003 in + turns on filtering
+      type: int32
+      default: 0
+      min: 0
+      max: 4095
+      reboot_required: true
+    GPS_RTCM_ID_OUT:
+      description:
+        short: ID set in RTCM out msgs
+        long: |-
+          ID set in RTCM out msgs
+      type: int32
+      default: 0
+      min: 0
+      max: 4095
+      reboot_required: true
     GPS_UBX_BAUD1:
       description:
         short: u-blox desired UART1 Baudrate

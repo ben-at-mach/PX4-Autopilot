@@ -997,6 +997,20 @@ GPS::run()
 		}
 	}
 
+	handle = param_find("GPS_RTCM_ID_OUT");
+	int32_t rtcm_out_id = 0;
+
+	if (handle != PARAM_INVALID) {
+		param_get(handle, &rtcm_out_id);
+	}
+
+	handle = param_find("GPS_RTCM_ID_IN");
+	int32_t rtcm_in_id = 0;
+
+	if (handle != PARAM_INVALID) {
+		param_get(handle, &rtcm_in_id);
+	}
+
 	handle = param_find("GPS_UBX_BAUD1");
 	int32_t uart1_desired_baudrate = 115200;
 
@@ -1136,6 +1150,8 @@ GPS::run()
 					.heading_offset = heading_offset,
 					.uart1_desired_baudrate = uart1_desired_baudrate,
 					.uart2_baudrate = f9p_uart2_baudrate,
+					.rtcm_out_id = rtcm_out_id,
+					.rtcm_in_id = rtcm_in_id,
 					.ppk_output = ppk_output > 0,
 					.raw_output = raw_output > 0,
 					.jam_det_sensitivity_hi = jam_det_sensitivity_hi > 0,
