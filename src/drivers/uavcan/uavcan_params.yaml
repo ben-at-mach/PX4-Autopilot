@@ -226,7 +226,7 @@ parameters:
         short: subscription GPS Relative
         long: |-
           Enable UAVCAN GPS Relative subscription.
-          ardupilot::gnss::RelPosHeading
+          uavcan::equipment::gnss::RelPosNED
       type: boolean
       default: 1
       reboot_required: true

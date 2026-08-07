@@ -67,7 +67,7 @@ if DRIVERS_UAVCAN
         default y
 
     config UAVCAN_SENSOR_GNSS_RELATIVE
-        bool "Subscribe to GPS Relative:                ardupilot::equipment::gnss::RelPosHeading"
+        bool "Subscribe to GPS Relative:                uavcan::equipment::gnss::RelPosNED"
         default y
 
     config UAVCAN_SENSOR_HYGROMETER

@@ -57,8 +57,8 @@
 #include <uavcan/equipment/gnss/Auxiliary.hpp>
 #include <uavcan/equipment/gnss/Fix.hpp>
 #include <uavcan/equipment/gnss/Fix2.hpp>
+#include <uavcan/equipment/gnss/RelPosNED.hpp>
 #include <ardupilot/gnss/MovingBaselineData.hpp>
-#include <ardupilot/gnss/RelPosHeading.hpp>
 #include <uavcan/equipment/gnss/RTCMStream.hpp>
 #include <uavcan/equipment/gnss/GpsDump.hpp>
 
@@ -89,7 +89,7 @@ private:
 	void gnss_auxiliary_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Auxiliary> &msg);
 	void gnss_fix_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Fix> &msg);
 	void gnss_fix2_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Fix2> &msg);
-	void gnss_relative_sub_cb(const uavcan::ReceivedDataStructure<ardupilot::gnss::RelPosHeading> &msg);
+	void gnss_relative_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::RelPosNED> &msg);
 	void moving_baseline_data_sub_cb(const uavcan::ReceivedDataStructure<ardupilot::gnss::MovingBaselineData> &msg);
 	void gps_dump_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::GpsDump> &msg);
 
@@ -127,7 +127,7 @@ private:
 		TimerCbBinder;
 
 	typedef uavcan::MethodBinder < UavcanGnssBridge *,
-		void (UavcanGnssBridge::*)(const uavcan::ReceivedDataStructure<ardupilot::gnss::RelPosHeading> &) >
+		void (UavcanGnssBridge::*)(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::RelPosNED> &) >
 		RelPosHeadingCbBinder;
 
 	typedef uavcan::MethodBinder < UavcanGnssBridge *,
@@ -143,7 +143,7 @@ private:
 	uavcan::Subscriber<uavcan::equipment::gnss::Auxiliary, AuxiliaryCbBinder> _sub_auxiliary;
 	uavcan::Subscriber<uavcan::equipment::gnss::Fix, FixCbBinder> _sub_fix;
 	uavcan::Subscriber<uavcan::equipment::gnss::Fix2, Fix2CbBinder> _sub_fix2;
-	uavcan::Subscriber<ardupilot::gnss::RelPosHeading, RelPosHeadingCbBinder> _sub_gnss_heading;
+	uavcan::Subscriber<uavcan::equipment::gnss::RelPosNED, RelPosHeadingCbBinder> _sub_gnss_heading;
 
 	// Used for MSM7 logging for PPK workflows
 	uavcan::Subscriber<ardupilot::gnss::MovingBaselineData, MovingBaselineDataCbBinder> _sub_moving_baseline_data;

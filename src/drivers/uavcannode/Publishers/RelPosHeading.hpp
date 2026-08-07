@@ -35,7 +35,7 @@
 
 #include "UavcanPublisherBase.hpp"
 
-#include <ardupilot/gnss/RelPosHeading.hpp>
+#include <uavcan/equipment/gnss/RelPosNED.hpp>
 
 #include <lib/drivers/device/Device.hpp>
 #include <uORB/SubscriptionCallback.hpp>
@@ -47,13 +47,13 @@ namespace uavcannode
 class RelPosHeadingPub :
 	public UavcanPublisherBase,
 	public uORB::SubscriptionCallbackWorkItem,
-	private uavcan::Publisher<ardupilot::gnss::RelPosHeading>
+	private uavcan::Publisher<uavcan::equipment::gnss::RelPosNED>
 {
 public:
 	RelPosHeadingPub(px4::WorkItem *work_item, uavcan::INode &node) :
-		UavcanPublisherBase(ardupilot::gnss::RelPosHeading::DefaultDataTypeID),
+		UavcanPublisherBase(uavcan::equipment::gnss::RelPosNED::DefaultDataTypeID),
 		uORB::SubscriptionCallbackWorkItem(work_item, ORB_ID(sensor_gnss_relative)),
-		uavcan::Publisher<ardupilot::gnss::RelPosHeading>(node)
+		uavcan::Publisher<uavcan::equipment::gnss::RelPosNED>(node)
 	{
 		this->setPriority(uavcan::TransferPriority::NumericallyMax);
 	}
@@ -63,31 +63,46 @@ public:
 		if (uORB::SubscriptionCallbackWorkItem::advertised()) {
 			printf("\t%s -> %s:%d\n",
 			       uORB::SubscriptionCallbackWorkItem::get_topic()->o_name,
-			       ardupilot::gnss::RelPosHeading::getDataTypeFullName(),
+			       uavcan::equipment::gnss::RelPosNED::getDataTypeFullName(),
 			       id());
 		}
 	}
 
 	void BroadcastAnyUpdates() override
 	{
-		using ardupilot::gnss::RelPosHeading;
+		using uavcan::equipment::gnss::RelPosNED;
 
-		// sensor_gnss_relative -> ardupilot::gnss::RelPosHeading
+		// sensor_gnss_relative -> uavcan::equipment::gnss::RelPosNED
 		sensor_gnss_relative_s sensor_gnss_relative;
 
 		if (uORB::SubscriptionCallbackWorkItem::update(&sensor_gnss_relative)) {
-			ardupilot::gnss::RelPosHeading rel_pos_heading{};
+			RelPosNED rel_pos{};
 
 			// TODO: FIX (timestamp_sample and UAVCAN timestamp)
-			rel_pos_heading.timestamp = uavcan::UtcTime::fromUSec(getNode().getMonotonicTime().toUSec());
+			rel_pos.timestamp = uavcan::UtcTime::fromUSec(getNode().getMonotonicTime().toUSec());
+			rel_pos.reference_station_id = sensor_gnss_relative.reference_station_id;
 
-			rel_pos_heading.reported_heading_acc_available = sensor_gnss_relative.heading_valid; // bool
-			rel_pos_heading.reported_heading_deg = math::degrees(sensor_gnss_relative.heading); // float32
-			rel_pos_heading.reported_heading_acc_deg = math::degrees(sensor_gnss_relative.heading_accuracy); // float32
-			rel_pos_heading.relative_distance_m = sensor_gnss_relative.position_length; // float16
-			rel_pos_heading.relative_down_pos_m = sensor_gnss_relative.position[2]; // float16
+			for (unsigned i = 0; i < 3; i++) {
+				rel_pos.position[i] = sensor_gnss_relative.position[i];
+				rel_pos.position_accuracy[i] = sensor_gnss_relative.position_accuracy[i];
+			}
 
-			uavcan::Publisher<ardupilot::gnss::RelPosHeading>::broadcast(rel_pos_heading);
+			rel_pos.heading = sensor_gnss_relative.heading;
+			rel_pos.heading_accuracy = sensor_gnss_relative.heading_accuracy;
+			rel_pos.position_length = sensor_gnss_relative.position_length;
+			rel_pos.accuracy_length = sensor_gnss_relative.accuracy_length;
+			rel_pos.gnss_fix_ok = sensor_gnss_relative.gnss_fix_ok;
+			rel_pos.differential_solution = sensor_gnss_relative.differential_solution;
+			rel_pos.relative_position_valid = sensor_gnss_relative.relative_position_valid;
+			rel_pos.carrier_solution_floating = sensor_gnss_relative.carrier_solution_floating;
+			rel_pos.carrier_solution_fixed = sensor_gnss_relative.carrier_solution_fixed;
+			rel_pos.moving_base_mode = sensor_gnss_relative.moving_base_mode;
+			rel_pos.reference_position_miss = sensor_gnss_relative.reference_position_miss;
+			rel_pos.reference_observations_miss = sensor_gnss_relative.reference_observations_miss;
+			rel_pos.heading_valid = sensor_gnss_relative.heading_valid;
+			rel_pos.relative_position_normalized = sensor_gnss_relative.relative_position_normalized;
+
+			uavcan::Publisher<RelPosNED>::broadcast(rel_pos);
 
 			// ensure callback is registered
 			uORB::SubscriptionCallbackWorkItem::registerCallback();

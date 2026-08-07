@@ -38,7 +38,7 @@
 
 #include <uORB/topics/sensor_gnss_relative.h>
 
-#include <ardupilot/gnss/RelPosHeading.hpp>
+#include <uavcan/equipment/gnss/RelPosNED.hpp>
 
 class UavcanGnssRelativeBridge : public UavcanSensorBridgeBase
 {
@@ -53,12 +53,12 @@ public:
 
 private:
 
-	void rel_pos_heading_sub_cb(const uavcan::ReceivedDataStructure<ardupilot::gnss::RelPosHeading> &msg);
+	void rel_pos_heading_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::RelPosNED> &msg);
 
 	typedef uavcan::MethodBinder < UavcanGnssRelativeBridge *,
-		void (UavcanGnssRelativeBridge::*)(const uavcan::ReceivedDataStructure<ardupilot::gnss::RelPosHeading> &) >
+		void (UavcanGnssRelativeBridge::*)(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::RelPosNED> &) >
 		RelPosHeadingCbBinder;
 
-	uavcan::Subscriber<ardupilot::gnss::RelPosHeading, RelPosHeadingCbBinder> _sub_rel_pos_heading;
+	uavcan::Subscriber<uavcan::equipment::gnss::RelPosNED, RelPosHeadingCbBinder> _sub_rel_pos_heading;
 
 };

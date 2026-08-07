@@ -334,7 +334,7 @@ UavcanGnssBridge::gnss_fix2_sub_cb(const uavcan::ReceivedDataStructure<uavcan::e
 	uint8_t jamming_state = 0;
 	uint8_t spoofing_state = 0;
 
-	// TODO: this hack should eventually be removed now that we have the RelPosHeading message
+	// TODO: this hack should eventually be removed now that we have the RelPosNED message
 	// HACK: Use ecef_position_velocity for heading
 	if (!msg.ecef_position_velocity.empty() && !_rel_heading_valid) {
 		if (!std::isnan(msg.ecef_position_velocity[0].velocity_xyz[0])) {
@@ -361,11 +361,11 @@ UavcanGnssBridge::gnss_fix2_sub_cb(const uavcan::ReceivedDataStructure<uavcan::e
 }
 
 void UavcanGnssBridge::gnss_relative_sub_cb(const
-		uavcan::ReceivedDataStructure<ardupilot::gnss::RelPosHeading> &msg)
+		uavcan::ReceivedDataStructure<uavcan::equipment::gnss::RelPosNED> &msg)
 {
-	_rel_heading_valid = msg.reported_heading_acc_available;
-	_rel_heading = math::radians(msg.reported_heading_deg);
-	_rel_heading_accuracy = math::radians(msg.reported_heading_acc_deg);
+	_rel_heading_valid = msg.heading_valid;
+	_rel_heading = msg.heading;
+	_rel_heading_accuracy = msg.heading_accuracy;
 
 }
 

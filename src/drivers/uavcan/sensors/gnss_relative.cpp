@@ -59,17 +59,33 @@ UavcanGnssRelativeBridge::init()
 }
 
 void UavcanGnssRelativeBridge::rel_pos_heading_sub_cb(const
-		uavcan::ReceivedDataStructure<ardupilot::gnss::RelPosHeading> &msg)
+		uavcan::ReceivedDataStructure<uavcan::equipment::gnss::RelPosNED> &msg)
 {
 	sensor_gnss_relative_s sensor_gnss_relative{};
 
 	sensor_gnss_relative.timestamp_sample = uavcan::UtcTime(msg.timestamp).toUSec();
 
-	sensor_gnss_relative.heading_valid = msg.reported_heading_acc_available;
-	sensor_gnss_relative.heading = math::radians(msg.reported_heading_deg);
-	sensor_gnss_relative.heading_accuracy = math::radians(msg.reported_heading_acc_deg);
-	sensor_gnss_relative.position_length = msg.relative_distance_m;
-	sensor_gnss_relative.position[2] = msg.relative_down_pos_m;
+	sensor_gnss_relative.reference_station_id = msg.reference_station_id;
+
+	for (unsigned i = 0; i < 3; i++) {
+		sensor_gnss_relative.position[i] = msg.position[i];
+		sensor_gnss_relative.position_accuracy[i] = msg.position_accuracy[i];
+	}
+
+	sensor_gnss_relative.heading = msg.heading;
+	sensor_gnss_relative.heading_accuracy = msg.heading_accuracy;
+	sensor_gnss_relative.position_length = msg.position_length;
+	sensor_gnss_relative.accuracy_length = msg.accuracy_length;
+	sensor_gnss_relative.gnss_fix_ok = msg.gnss_fix_ok;
+	sensor_gnss_relative.differential_solution = msg.differential_solution;
+	sensor_gnss_relative.relative_position_valid = msg.relative_position_valid;
+	sensor_gnss_relative.carrier_solution_floating = msg.carrier_solution_floating;
+	sensor_gnss_relative.carrier_solution_fixed = msg.carrier_solution_fixed;
+	sensor_gnss_relative.moving_base_mode = msg.moving_base_mode;
+	sensor_gnss_relative.reference_position_miss = msg.reference_position_miss;
+	sensor_gnss_relative.reference_observations_miss = msg.reference_observations_miss;
+	sensor_gnss_relative.heading_valid = msg.heading_valid;
+	sensor_gnss_relative.relative_position_normalized = msg.relative_position_normalized;
 
 	sensor_gnss_relative.device_id = make_uavcan_device_id(msg);
 
