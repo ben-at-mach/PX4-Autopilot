@@ -34,6 +34,10 @@ if DRIVERS_UAVCANNODE
         bool "Include GNSS fix"
         default n
 
+    config UAVCANNODE_GNSS_SAT_INFO
+        bool "Include GNSS satellite information"
+        default n
+
     config UAVCANNODE_HARDPOINT_COMMAND
         bool "Include hardpoint commands"
         default n

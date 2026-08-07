@@ -52,6 +52,15 @@ parameters:
       type: boolean
       default: 0
       reboot_required: true
+
+    CANNODE_PUB_SAT:
+      description:
+        short: Enable GNSS satellite information publication
+        long: |-
+          Enables publication of satellite_info over DroneCAN.
+      type: boolean
+      default: 0
+      reboot_required: true
     CANNODE_PUB_DUMP:
       description:
         short: Enable GpsDump publication

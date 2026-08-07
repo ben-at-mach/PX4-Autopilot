@@ -48,6 +48,7 @@
 #include <uORB/SubscriptionMultiArray.hpp>
 #include <uORB/PublicationMulti.hpp>
 #include <uORB/topics/sensor_gps.h>
+#include <uORB/topics/satellite_info.h>
 #include <uORB/topics/rtcm_data.h>
 #include <uORB/topics/gps_dump.h>
 
@@ -58,6 +59,7 @@
 #include <uavcan/equipment/gnss/Fix.hpp>
 #include <uavcan/equipment/gnss/Fix2.hpp>
 #include <uavcan/equipment/gnss/RelPosNED.hpp>
+#include <uavcan/equipment/gnss/SV_Info.hpp>
 #include <ardupilot/gnss/MovingBaselineData.hpp>
 #include <uavcan/equipment/gnss/RTCMStream.hpp>
 #include <uavcan/equipment/gnss/GpsDump.hpp>
@@ -90,6 +92,7 @@ private:
 	void gnss_fix_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Fix> &msg);
 	void gnss_fix2_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Fix2> &msg);
 	void gnss_relative_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::RelPosNED> &msg);
+	void gnss_sv_info_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::SV_Info> &msg);
 	void moving_baseline_data_sub_cb(const uavcan::ReceivedDataStructure<ardupilot::gnss::MovingBaselineData> &msg);
 	void gps_dump_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::GpsDump> &msg);
 
@@ -131,6 +134,10 @@ private:
 		RelPosHeadingCbBinder;
 
 	typedef uavcan::MethodBinder < UavcanGnssBridge *,
+		void (UavcanGnssBridge::*)(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::SV_Info> &) >
+		SVInfoCbBinder;
+
+	typedef uavcan::MethodBinder < UavcanGnssBridge *,
 		void (UavcanGnssBridge::*)(const uavcan::ReceivedDataStructure<ardupilot::gnss::MovingBaselineData> &) >
 		MovingBaselineDataCbBinder;
 
@@ -144,6 +151,7 @@ private:
 	uavcan::Subscriber<uavcan::equipment::gnss::Fix, FixCbBinder> _sub_fix;
 	uavcan::Subscriber<uavcan::equipment::gnss::Fix2, Fix2CbBinder> _sub_fix2;
 	uavcan::Subscriber<uavcan::equipment::gnss::RelPosNED, RelPosHeadingCbBinder> _sub_gnss_heading;
+	uavcan::Subscriber<uavcan::equipment::gnss::SV_Info, SVInfoCbBinder> _sub_sv_info;
 
 	// Used for MSM7 logging for PPK workflows
 	uavcan::Subscriber<ardupilot::gnss::MovingBaselineData, MovingBaselineDataCbBinder> _sub_moving_baseline_data;

@@ -68,6 +68,10 @@ extern "C" __attribute__((weak)) const char *board_get_uavcan_hw_name(void)
 #include "Publishers/GnssAuxiliary.hpp"
 #endif // CONFIG_UAVCANNODE_GNSS_FIX
 
+#if defined(CONFIG_UAVCANNODE_GNSS_SAT_INFO)
+#include "Publishers/SV_Info.hpp"
+#endif // CONFIG_UAVCANNODE_GNSS_SAT_INFO
+
 #if defined(CONFIG_UAVCANNODE_INDICATED_AIR_SPEED)
 #include "Publishers/IndicatedAirspeed.hpp"
 #endif // CONFIG_UAVCANNODE_INDICATED_AIR_SPEED
@@ -396,6 +400,18 @@ int UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events
 	_publisher_list.add(new GnssFix2(this, _node));
 	_publisher_list.add(new GnssAuxiliary(this, _node));
 #endif // CONFIG_UAVCANNODE_GNSS_FIX
+
+#if defined(CONFIG_UAVCANNODE_GNSS_SAT_INFO)
+	int32_t cannode_pub_sat_info = 0;
+	param_get(param_find("CANNODE_PUB_SAT"), &cannode_pub_sat_info);
+
+	if (cannode_pub_sat_info == 1) {
+		for (uint8_t instance = 0; instance < ORB_MULTI_MAX_INSTANCES; instance++) {
+			_publisher_list.add(new SVInfoPub(this, _node, instance));
+		}
+	}
+
+#endif // CONFIG_UAVCANNODE_GNSS_SAT_INFO
 
 #if defined(CONFIG_UAVCANNODE_MAGNETIC_FIELD_STRENGTH)
 	int32_t cannode_pub_mag = 1;

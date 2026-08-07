@@ -60,6 +60,7 @@ UavcanGnssBridge::UavcanGnssBridge(uavcan::INode &node, NodeInfoPublisher *node_
 	_sub_fix(node),
 	_sub_fix2(node),
 	_sub_gnss_heading(node),
+	_sub_sv_info(node),
 	_sub_moving_baseline_data(node),
 	_sub_gps_dump(node),
 	_pub_moving_baseline_data(node),
@@ -109,6 +110,13 @@ UavcanGnssBridge::init()
 
 	if (res < 0) {
 		PX4_WARN("GNSS relative sub failed %i", res);
+		return res;
+	}
+
+	res = _sub_sv_info.start(SVInfoCbBinder(this, &UavcanGnssBridge::gnss_sv_info_sub_cb));
+
+	if (res < 0) {
+		PX4_WARN("GNSS satellite info sub failed %i", res);
 		return res;
 	}
 
@@ -367,6 +375,39 @@ void UavcanGnssBridge::gnss_relative_sub_cb(const
 	_rel_heading = msg.heading;
 	_rel_heading_accuracy = msg.heading_accuracy;
 
+}
+
+void UavcanGnssBridge::gnss_sv_info_sub_cb(const
+		uavcan::ReceivedDataStructure<uavcan::equipment::gnss::SV_Info> &msg)
+{
+	const size_t satellite_count = msg.svid.size();
+
+	// Dynamic arrays may contain fewer than 40 entries, including 20 from
+	// older publishers. Only reject oversized or mismatched arrays.
+	if (satellite_count > satellite_info_s::SAT_INFO_MAX_SATELLITES ||
+	    msg.used.size() != msg.svid.size() ||
+	    msg.elevation.size() != msg.svid.size() ||
+	    msg.azimuth.size() != msg.svid.size() ||
+	    msg.snr.size() != msg.svid.size() ||
+	    msg.prn.size() != msg.svid.size()) {
+		PX4_WARN("Invalid GNSS satellite info from node %u", msg.getSrcNodeID().get());
+		return;
+	}
+
+	satellite_info_s satellite_info{};
+	satellite_info.timestamp = uavcan::UtcTime(msg.timestamp).toUSec();
+	satellite_info.count = satellite_count;
+
+	for (size_t i = 0; i < satellite_count; i++) {
+		satellite_info.svid[i] = msg.svid[i];
+		satellite_info.used[i] = msg.used[i];
+		satellite_info.elevation[i] = msg.elevation[i];
+		satellite_info.azimuth[i] = msg.azimuth[i];
+		satellite_info.snr[i] = msg.snr[i];
+		satellite_info.prn[i] = msg.prn[i];
+	}
+
+	publish(msg.getSrcNodeID().get(), &satellite_info);
 }
 
 void UavcanGnssBridge::moving_baseline_data_sub_cb(const
