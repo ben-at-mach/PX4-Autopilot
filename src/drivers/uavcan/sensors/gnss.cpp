@@ -77,6 +77,11 @@ UavcanGnssBridge::UavcanGnssBridge(uavcan::INode &node, NodeInfoPublisher *node_
 UavcanGnssBridge::~UavcanGnssBridge()
 {
 	delete [] _channel_using_fix2;
+
+	for (auto &publisher : _satellite_info_pub) {
+		delete publisher;
+	}
+
 	perf_free(_rtcm_stream_pub_perf);
 	perf_free(_moving_baseline_data_pub_perf);
 	perf_free(_moving_baseline_data_sub_perf);
@@ -380,19 +385,21 @@ void UavcanGnssBridge::gnss_relative_sub_cb(const
 void UavcanGnssBridge::gnss_sv_info_sub_cb(const
 		uavcan::ReceivedDataStructure<uavcan::equipment::gnss::SV_Info> &msg)
 {
-	const size_t satellite_count = msg.svid.size();
+	const size_t input_count = msg.svid.size();
 
-	// Dynamic arrays may contain fewer than 40 entries, including 20 from
-	// older publishers. Only reject oversized or mismatched arrays.
-	if (satellite_count > satellite_info_s::SAT_INFO_MAX_SATELLITES ||
-	    msg.used.size() != msg.svid.size() ||
-	    msg.elevation.size() != msg.svid.size() ||
-	    msg.azimuth.size() != msg.svid.size() ||
-	    msg.snr.size() != msg.svid.size() ||
-	    msg.prn.size() != msg.svid.size()) {
+	if (msg.used.size() != input_count ||
+	    msg.elevation.size() != input_count ||
+	    msg.azimuth.size() != input_count ||
+	    msg.snr.size() != input_count ||
+	    msg.prn.size() != input_count) {
 		PX4_WARN("Invalid GNSS satellite info from node %u", msg.getSrcNodeID().get());
 		return;
 	}
+
+	// Truncate newer 40-entry messages when running with an older 20-entry
+	// satellite_info uORB schema.
+	const size_t satellite_count = input_count < satellite_info_s::SAT_INFO_MAX_SATELLITES ?
+				       input_count : satellite_info_s::SAT_INFO_MAX_SATELLITES;
 
 	satellite_info_s satellite_info{};
 	satellite_info.timestamp = uavcan::UtcTime(msg.timestamp).toUSec();
@@ -407,7 +414,21 @@ void UavcanGnssBridge::gnss_sv_info_sub_cb(const
 		satellite_info.prn[i] = msg.prn[i];
 	}
 
-	publish(msg.getSrcNodeID().get(), &satellite_info);
+	const int8_t channel_index = get_channel_index_for_node(msg.getSrcNodeID().get());
+
+	if (channel_index < 0) {
+		PX4_WARN("No GNSS channel for satellite info from node %u", msg.getSrcNodeID().get());
+		return;
+	}
+
+	if (_satellite_info_pub[channel_index] == nullptr) {
+		_satellite_info_pub[channel_index] = new uORB::PublicationMulti<satellite_info_s>(ORB_ID(satellite_info));
+		_satellite_info_pub[channel_index]->advertise();
+		PX4_INFO("satellite_info: node %u -> uORB instance %d",
+			 msg.getSrcNodeID().get(), _satellite_info_pub[channel_index]->get_instance());
+	}
+
+	_satellite_info_pub[channel_index]->publish(satellite_info);
 }
 
 void UavcanGnssBridge::moving_baseline_data_sub_cb(const

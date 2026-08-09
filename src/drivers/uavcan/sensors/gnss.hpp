@@ -162,6 +162,8 @@ private:
 	uavcan::Publisher<ardupilot::gnss::MovingBaselineData> _pub_moving_baseline_data;
 	uavcan::Publisher<uavcan::equipment::gnss::RTCMStream> _pub_rtcm_stream;
 
+	uORB::PublicationMulti<satellite_info_s> *_satellite_info_pub[DEFAULT_MAX_CHANNELS] {};
+
 	uint64_t	_last_gnss_auxiliary_timestamp{0};
 	float		_last_gnss_auxiliary_hdop{0.0f};
 	float		_last_gnss_auxiliary_vdop{0.0f};
