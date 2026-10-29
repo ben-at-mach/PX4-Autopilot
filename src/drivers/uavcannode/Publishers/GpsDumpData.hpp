@@ -103,8 +103,16 @@ public:
 			size_t written = 0;
 			int result = 0;
 
-			while ((result >= 0) && written < gps_dump.len) {
-				size_t chunk_size = gps_dump.len - written;
+			// Bit 7 of len is the direction flag, not part of the length. Without the mask a
+			// to-device message reads past the end of data[].
+			size_t total_len = gps_dump.len & 0x7F;
+
+			if (total_len > sizeof(gps_dump.data)) {
+				total_len = sizeof(gps_dump.data);
+			}
+
+			while ((result >= 0) && written < total_len) {
+				size_t chunk_size = total_len - written;
 
 				if (chunk_size > capacity) {
 					chunk_size = capacity;
