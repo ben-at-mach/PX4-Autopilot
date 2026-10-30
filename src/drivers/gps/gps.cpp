@@ -1032,6 +1032,20 @@ GPS::run()
 		param_get(handle, &raw_output);
 	}
 
+	handle = param_find("GPS_UBX_SPAN");
+	int32_t span_output = 0;
+
+	if (handle != PARAM_INVALID) {
+		param_get(handle, &span_output);
+	}
+
+	handle = param_find("GPS_UBX_QA");
+	int32_t qa_output = 0;
+
+	if (handle != PARAM_INVALID) {
+		param_get(handle, &qa_output);
+	}
+
 	handle = param_find("GPS_UBX_PPK");
 	int32_t ppk_output = 0;
 
@@ -1154,6 +1168,8 @@ GPS::run()
 					.rtcm_in_id = rtcm_in_id,
 					.ppk_output = ppk_output > 0,
 					.raw_output = raw_output > 0,
+					.span_output = span_output > 0,
+					.qa_output = qa_output > 0,
 					.jam_det_sensitivity_hi = jam_det_sensitivity_hi > 0,
 					.mode = ubx_mode,
 				};

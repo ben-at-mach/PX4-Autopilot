@@ -194,7 +194,29 @@ parameters:
       reboot_required: true
     GPS_UBX_RAW:
       description:
-        short: Enable RAWX + SRBF + SIG ... in gps_dump for QA or PPK workflows
+        short: Enable RXM-RAWX and RXM-SFRBX output in gps_dump
+        long: |-
+          Raw observations and navigation data for QA or PPK workflows.
+          RXM-RAWX is sent every navigation epoch (about 2.7 kB each), so this
+          dominates the gps_dump data rate and scales with GPS_UBX_RATE.
+      type: boolean
+      default: 0
+      reboot_required: true
+    GPS_UBX_SPAN:
+      description:
+        short: Enable MON-SPAN (spectrum) output in gps_dump
+        long: |-
+          RF spectrum (about 830 B) every 100 navigation epochs, for interference QA.
+      type: boolean
+      default: 0
+      reboot_required: true
+    GPS_UBX_QA:
+      description:
+        short: Enable NAV-SIG, RXM-COR (RXM-RTCM on F9P), MON-COMMS and NAV-SBAS output in gps_dump
+        long: |-
+          Signal, correction, communication and SBAS status messages for QA.
+          Each message is configured separately; one that the receiver firmware
+          rejects only produces a warning.
       type: boolean
       default: 0
       reboot_required: true
