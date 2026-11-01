@@ -4,7 +4,10 @@
 #------------------------------------------------------------------------------
 gps start -d /dev/ttyS0 -p ubx
 
-icm42688p -R 0 -s start
+if param compare -s CANNODE_PUB_IMU 1
+then
+	icm42688p -R 0 -s start
+fi
 
 bmp388 -I -b 1 start
 
