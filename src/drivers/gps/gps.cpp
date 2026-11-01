@@ -1032,6 +1032,20 @@ GPS::run()
 		param_get(handle, &raw_output);
 	}
 
+	handle = param_find("GPS_UBX_RAWX_HZ");
+	int32_t rawx_hz = 0;
+
+	if (handle != PARAM_INVALID) {
+		param_get(handle, &rawx_hz);
+	}
+
+	handle = param_find("GPS_UBX_SFRBX");
+	int32_t sfrbx_div = 100;
+
+	if (handle != PARAM_INVALID) {
+		param_get(handle, &sfrbx_div);
+	}
+
 	handle = param_find("GPS_UBX_SPAN");
 	int32_t span_output = 0;
 
@@ -1168,6 +1182,8 @@ GPS::run()
 					.rtcm_in_id = rtcm_in_id,
 					.ppk_output = ppk_output > 0,
 					.raw_output = raw_output > 0,
+					.rawx_hz = (uint8_t)math::constrain(rawx_hz, (int32_t)0, (int32_t)25),
+					.sfrbx_div = (uint8_t)math::constrain(sfrbx_div, (int32_t)0, (int32_t)255),
 					.span_output = span_output > 0,
 					.qa_output = qa_output > 0,
 					.jam_det_sensitivity_hi = jam_det_sensitivity_hi > 0,

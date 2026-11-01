@@ -197,10 +197,37 @@ parameters:
         short: Enable RXM-RAWX and RXM-SFRBX output in gps_dump
         long: |-
           Raw observations and navigation data for QA or PPK workflows.
-          RXM-RAWX is sent every navigation epoch (about 2.7 kB each), so this
-          dominates the gps_dump data rate and scales with GPS_UBX_RATE.
+          RXM-RAWX is sent every navigation epoch unless GPS_UBX_RAWX_HZ lowers it
+          (about 1.7 to 2.7 kB each), so this dominates the gps_dump data rate and
+          scales with GPS_UBX_RATE.
       type: boolean
       default: 0
+      reboot_required: true
+    GPS_UBX_RAWX_HZ:
+      description:
+        short: RXM-RAWX output rate in gps_dump
+        long: |-
+          Only used with GPS_UBX_RAW. 0 sends RXM-RAWX every navigation epoch.
+          A lower rate is made with a whole-number divider of the navigation rate
+          (GPS_UBX_RATE): the navigation rate divided by this value, rounded.
+          5 at 10 Hz gives 5 Hz, 5 at 14 Hz gives 4.7 Hz. NAV-PVT keeps the full rate.
+      type: int32
+      default: 0
+      min: 0
+      max: 25
+      unit: Hz
+      reboot_required: true
+    GPS_UBX_SFRBX:
+      description:
+        short: RXM-SFRBX output rate divider in gps_dump
+        long: |-
+          Only used with GPS_UBX_RAW. Output rate of RXM-SFRBX in the receiver:
+          1 outputs every message, a higher value outputs fewer, 0 turns it off.
+          The default of 100 keeps this message small next to RXM-RAWX.
+      type: int32
+      default: 100
+      min: 0
+      max: 255
       reboot_required: true
     GPS_UBX_SPAN:
       description:
