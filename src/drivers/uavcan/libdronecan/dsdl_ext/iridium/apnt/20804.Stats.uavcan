@@ -1,0 +1,12 @@
+#
+# Iridium APNT burst statistics for the prior minute (NMEA $GSSTA).
+# Unknown floats are NaN, unknown counts are -1.
+#
+
+int64 bursts_total
+int16 bursts_last_minute
+
+# dB-Hz
+float16 cn0_avg
+float16 cn0_max
+float16 cn0_min

@@ -1,0 +1,25 @@
+#
+# Iridium APNT per-burst satellite ranging data (NMEA $GSSVI).
+# An sv_id outside 1..66 means the satellite could not be identified; the burst is for logging only.
+# Unknown floats are NaN, unknown coded values are -1.
+#
+
+int16 sv_id
+
+# Microseconds since the GPS epoch. Zero if unknown.
+uint64 time_of_validity_us
+
+# Seconds since receiver initialization
+float64 time_of_arrival_s
+
+int64 burst_counter
+
+float64 pseudorange        # m
+float32 pseudorange_rate   # m/s
+float16 cn0                # dB-Hz
+float32 doppler            # Hz
+float64[3] sv_position_ecef # m
+float32[3] sv_velocity_ecef # m/s
+
+# 0 not available, 1 initializing, 2 pending, 3 usable
+int8 state

@@ -221,6 +221,11 @@ CONFIG:
       buildType: MinSizeRel
       settings:
         CONFIG: ark_cannode_default
+    ark_cannode_apnt:
+      short: ark_cannode_apnt
+      buildType: MinSizeRel
+      settings:
+        CONFIG: ark_cannode_apnt
     ark_cannode_canbootloader:
       short: ark_cannode_canbootloader
       buildType: MinSizeRel

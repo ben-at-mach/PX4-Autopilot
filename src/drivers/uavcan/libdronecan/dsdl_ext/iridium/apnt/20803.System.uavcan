@@ -1,0 +1,23 @@
+#
+# Iridium APNT system status (NMEA $GSSYS).
+#
+
+uint32 uptime_s
+uint32 app_uptime_s
+
+# Bit field: 0 serial number, 1 subscription, 2 model, 3 manufacturer, 4 key missing,
+# 5 BTFC invalid, 6 operational data limits exceeded
+uint32 error
+
+# Bit field: 0 location, 1 timing, 4 dynamic, 5 raw measurement
+uint32 subscription_configured
+uint32 subscription_enabled
+
+# Seconds since the GPS epoch. -1 if unknown.
+int64 subscription_start_gps_s
+int64 subscription_end_gps_s
+
+uint32 extended_status
+
+# Receiver application software version
+uint8[<=23] version

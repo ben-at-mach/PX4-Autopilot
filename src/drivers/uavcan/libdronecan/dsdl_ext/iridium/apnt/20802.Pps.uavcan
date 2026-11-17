@@ -1,0 +1,38 @@
+#
+# Iridium APNT timing status (NMEA $GSPPS).
+# Unknown floats are NaN, unknown coded values are -1.
+#
+
+# GPS time of the last PPS rising edge, seconds since the GPS epoch. -1 if unknown.
+int64 gps_time_s
+
+# GPS minus UTC, seconds. -1 if invalid.
+int16 utc_offset_s
+
+int8 leap
+
+int8 pps_status
+int8 PPS_STATUS_INIT              = 0
+int8 PPS_STATUS_FREERUN           = 1
+int8 PPS_STATUS_HOLDOVER          = 2
+int8 PPS_STATUS_TRACKING_ACTIVE   = 3
+int8 PPS_STATUS_TRACKING_LOCKABLE = 4
+
+# 0 none, 1 Iridium PNT
+int8 source
+
+# 1 sigma PPS accuracy, ns
+float32 accuracy_ns
+
+# Time figure of merit, 1 (1 ns or better) to 15 (over 10 s), one step per decade
+int8 tfom
+
+bool hard_correction_coming
+bool hard_correction_applied
+
+# 0 init, 1 acquiring, 2 lockable, 3 active
+int8 iridium_pps_status
+
+float16 burst_age
+float32 iridium_diff_ns
+float32 iridium_accuracy_ns

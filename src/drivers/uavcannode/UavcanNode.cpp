@@ -108,6 +108,11 @@ extern "C" __attribute__((weak)) const char *board_get_uavcan_hw_name(void)
 #include "Publishers/StaticTemperature.hpp"
 #endif // CONFIG_UAVCANNODE_STATIC_TEMPERATURE
 
+#if defined(CONFIG_UAVCANNODE_IRIDIUM_APNT)
+#include "Publishers/IridiumApnt.hpp"
+#include "Subscribers/IridiumApntCommand.hpp"
+#endif // CONFIG_UAVCANNODE_IRIDIUM_APNT
+
 #if defined(CONFIG_UAVCANNODE_ARMING_STATUS)
 #include "Subscribers/ArmingStatus.hpp"
 #endif // CONFIG_UAVCANNODE_ARMING_STATUS
@@ -510,6 +515,20 @@ int UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events
 	_publisher_list.add(new GnssAuxiliary(this, _node));
 #endif // CONFIG_UAVCANNODE_GNSS_FIX
 
+#if defined(CONFIG_UAVCANNODE_IRIDIUM_APNT)
+	_publisher_list.add(new IridiumApntPosition(this, _node, ORB_ID(iridium_apnt_position)));
+	_publisher_list.add(new IridiumApntVelocity(this, _node, ORB_ID(iridium_apnt_velocity)));
+	_publisher_list.add(new IridiumApntPps(this, _node, ORB_ID(iridium_apnt_pps)));
+	_publisher_list.add(new IridiumApntSystem(this, _node, ORB_ID(iridium_apnt_system)));
+	_publisher_list.add(new IridiumApntStats(this, _node, ORB_ID(iridium_apnt_stats)));
+	_publisher_list.add(new IridiumApntSvi(this, _node, ORB_ID(iridium_apnt_svi)));
+	_publisher_list.add(new IridiumApntSkyview(this, _node, ORB_ID(iridium_apnt_skyview)));
+	_publisher_list.add(new IridiumApntResponse(this, _node, ORB_ID(iridium_apnt_response)));
+#if defined(CONFIG_UAVCANNODE_IRIDIUM_APNT_SENTENCE)
+	_publisher_list.add(new IridiumApntSentence(this, _node, ORB_ID(iridium_apnt_sentence)));
+#endif // CONFIG_UAVCANNODE_IRIDIUM_APNT_SENTENCE
+#endif // CONFIG_UAVCANNODE_IRIDIUM_APNT
+
 #if defined(CONFIG_UAVCANNODE_MAGNETIC_FIELD_STRENGTH)
 	int32_t cannode_pub_mag = 1;
 	param_get(param_find("CANNODE_PUB_MAG"), &cannode_pub_mag);
@@ -590,6 +609,10 @@ int UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events
 #if defined(CONFIG_UAVCANNODE_LIGHTS_COMMAND)
 	_subscriber_list.add(new LightsCommand(_node));
 #endif // CONFIG_UAVCANNODE_LIGHTS_COMMAND
+
+#if defined(CONFIG_UAVCANNODE_IRIDIUM_APNT)
+	_subscriber_list.add(new IridiumApntCommand(_node));
+#endif // CONFIG_UAVCANNODE_IRIDIUM_APNT
 
 #if defined(CONFIG_UAVCANNODE_RTK_DATA)
 	int32_t cannode_sub_mbd = 0;

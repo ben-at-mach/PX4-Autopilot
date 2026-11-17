@@ -1,0 +1,8 @@
+#
+# One raw NMEA line from the Iridium APNT receiver, without the line terminator.
+# Only sent when enabled, as it adds traffic.
+#
+
+bool checksum_ok
+
+uint8[<=200] data

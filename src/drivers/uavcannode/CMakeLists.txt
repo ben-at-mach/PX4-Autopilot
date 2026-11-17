@@ -99,6 +99,7 @@ set(DSDLC_INPUTS
 	"${DSDLC_DIR}/cuav"
 	"${DSDLC_DIR}/dronecan"
 	"${DSDLC_DIR}/uavcan"
+	"${LIBDRONECAN_DIR}/dsdl_ext/iridium"
 )
 set(DSDLC_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/include/dsdlc_generated")
 

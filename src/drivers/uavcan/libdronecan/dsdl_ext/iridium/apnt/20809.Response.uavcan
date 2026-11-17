@@ -1,0 +1,16 @@
+#
+# Result of an Iridium APNT Command (NMEA $GSRSP, with the $GSPAR values for a read).
+#
+
+uint32 request_id
+
+bool ack
+bool timeout
+
+# Receiver error code from $GSRSP. 0 none, -2 unsupported parameter ID, -7 parameter is unset, ...
+int8 error_code
+
+uint16 param_id
+
+# Comma separated values from $GSPAR for a read
+uint8[<=95] args
