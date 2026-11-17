@@ -26,6 +26,10 @@ if DRIVERS_UAVCAN
         bool "Include safety state controller"
         default y
 
+    config UAVCAN_IRIDIUM_APNT
+        bool "Include Iridium APNT receiver (iridium.apnt DSDL messages to iridium_apnt_* uORB)"
+        default n
+
     config UAVCAN_REMOTEID_CONTROLLER
         bool "Include remote ID controller"
         default y

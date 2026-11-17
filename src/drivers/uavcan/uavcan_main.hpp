@@ -69,6 +69,9 @@
 
 #include "logmessage.hpp"
 
+#if defined(CONFIG_UAVCAN_IRIDIUM_APNT)
+#include "iridium_apnt.hpp"
+#endif
 #if defined(CONFIG_UAVCAN_REMOTEID_CONTROLLER)
 #include "remoteid.hpp"
 #endif
@@ -293,6 +296,9 @@ private:
 #endif
 #if defined(CONFIG_UAVCAN_SAFETY_STATE_CONTROLLER)
 	UavcanSafetyState         	_safety_state_controller;
+#endif
+#if defined(CONFIG_UAVCAN_IRIDIUM_APNT)
+	UavcanIridiumApnt               _iridium_apnt;
 #endif
 #if defined(CONFIG_UAVCAN_REMOTEID_CONTROLLER)
 	UavcanRemoteIDController _remoteid_controller;

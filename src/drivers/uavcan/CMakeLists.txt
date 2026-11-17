@@ -105,6 +105,7 @@ set(DSDLC_INPUTS
 	"${DSDLC_DIR}/cuav"
 	"${DSDLC_DIR}/dronecan"
 	"${DSDLC_DIR}/uavcan"
+	"${LIBDRONECAN_DIR}/dsdl_ext/iridium"
 )
 set(DSDLC_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/include/dsdlc_generated")
 
@@ -129,6 +130,10 @@ if(CONFIG_UAVCAN_REMOTEID_CONTROLLER)
 	set(remoteid_srcs remoteid.cpp remoteid.hpp)
 endif()
 
+if(CONFIG_UAVCAN_IRIDIUM_APNT)
+	set(iridium_apnt_srcs iridium_apnt.cpp iridium_apnt.hpp)
+endif()
+
 px4_add_module(
 	MODULE drivers__uavcan
 	MAIN uavcan
@@ -149,6 +154,7 @@ px4_add_module(
 		beep.cpp
 		beep.hpp
 		${remoteid_srcs}
+		${iridium_apnt_srcs}
 		rgbled.cpp
 		rgbled.hpp
 		safety_state.cpp
