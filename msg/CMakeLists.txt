@@ -126,6 +126,16 @@ set(msg_files
 	InputRc.msg
 	InternalCombustionEngineControl.msg
 	InternalCombustionEngineStatus.msg
+	IridiumApntCommand.msg
+	IridiumApntPosition.msg
+	IridiumApntPps.msg
+	IridiumApntResponse.msg
+	IridiumApntSentence.msg
+	IridiumApntSkyview.msg
+	IridiumApntStats.msg
+	IridiumApntSvi.msg
+	IridiumApntSystem.msg
+	IridiumApntVelocity.msg
 	IridiumsbdStatus.msg
 	IrlockReport.msg
 	LandingGear.msg

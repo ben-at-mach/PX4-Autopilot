@@ -244,6 +244,16 @@ void LoggedTopics::add_default_topics()
 	add_topic_multi("sensor_baro", 1000, 4);
 	add_topic_multi("sensor_gnss", 1000, 2);
 	add_topic_multi("sensor_gnss_relative", 1000, 1);
+	add_optional_topic("iridium_apnt_position", 1000);
+	add_optional_topic("iridium_apnt_velocity", 1000);
+	add_optional_topic("iridium_apnt_pps", 1000);
+	add_optional_topic("iridium_apnt_system", 1000);
+	add_optional_topic("iridium_apnt_stats", 1000);
+	add_optional_topic("iridium_apnt_skyview", 1000);
+	add_optional_topic("iridium_apnt_svi");
+	add_optional_topic("iridium_apnt_sentence");
+	add_optional_topic("iridium_apnt_command");
+	add_optional_topic("iridium_apnt_response");
 	add_optional_topic_multi("sensor_gyro", 1000, 4);
 	add_topic_multi("sensor_mag", 1000, 4);
 	add_topic_multi("sensor_optical_flow", 1000, 2);
