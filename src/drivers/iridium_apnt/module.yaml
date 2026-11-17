@@ -1,0 +1,55 @@
+module_name: Iridium APNT
+
+serial_config:
+    - command: iridium_apnt start -d ${SERIAL_DEV}
+      port_config_param:
+        name: IAPNT_CFG
+        group: Iridium APNT
+
+parameters:
+    - group: Iridium APNT
+      definitions:
+        IAPNT_MAX_PFOM:
+          description:
+            short: Worst position figure of merit accepted as a fix
+            long: |
+              The receiver reports a position figure of merit (PFOM) from 1 (RMS error under 25 m)
+              to 9 (5 km or more). Positions with a PFOM above this value are published on
+              sensor_gnss with no fix. Receivers have been seen reporting values above 9.
+          type: int32
+          min: 1
+          max: 15
+          default: 9
+        IAPNT_GEOID_M:
+          description:
+            short: Geoid undulation for the operating area
+            long: |
+              The receiver reports altitude above the WGS84 ellipsoid only. The altitude above mean
+              sea level published on sensor_gnss is the ellipsoid altitude minus this value.
+          type: float
+          unit: m
+          decimal: 1
+          increment: 0.1
+          default: 0.0
+        IAPNT_KF_MODE:
+          description:
+            short: Receiver Kalman filter mode
+            long: |
+              Written to receiver parameter 101 (volatile memory) once after the driver connects.
+              Use the driver command to change the stored mode.
+          type: enum
+          values:
+            -1: Leave unchanged
+            0: Static, surveyed position
+            1: Static, unknown position
+            3: Dynamic
+          default: -1
+          reboot_required: true
+        IAPNT_RAW_PUB:
+          description:
+            short: Publish raw NMEA sentences
+            long: |
+              Publish every received line on iridium_apnt_sentence, including lines with a bad
+              checksum.
+          type: boolean
+          default: 0

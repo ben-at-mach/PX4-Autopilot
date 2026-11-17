@@ -1,0 +1,25 @@
+#
+# Iridium APNT velocity solution (NMEA $GSVEL).
+# Unknown floats are NaN, unknown coded values are -1.
+#
+
+# Time of validity, microseconds since the GPS epoch. Zero if unknown.
+uint64 gps_time_us
+
+# East, North, Up. m/s
+float32[3] velocity_enu
+
+# East-North-Up velocity covariance, upper triangle row by row: EE, EN, EU, NN, NU, UU. (m/s)^2
+float32[6] covariance
+
+# Seconds since the last Iridium burst, sensor update and Kalman filter update
+float16 burst_age
+float16 sensor_age
+float16 kf_age
+
+int8 state
+int8 STATE_UNKNOWN       = -1
+int8 STATE_NOT_AVAILABLE = 0
+int8 STATE_INITIALIZING  = 1
+int8 STATE_PENDING       = 2
+int8 STATE_USABLE        = 3

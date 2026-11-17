@@ -54,6 +54,20 @@ if DRIVERS_UAVCANNODE
         bool "Include Indicated Airspeed"
         default n
 
+    config UAVCANNODE_IRIDIUM_APNT
+        bool "Include Iridium APNT messages and command"
+        default n
+        ---help---
+            Publish the iridium_apnt_* uORB topics as iridium.apnt DSDL messages and accept
+            iridium.apnt.Command. Use with the iridium_apnt driver.
+
+    config UAVCANNODE_IRIDIUM_APNT_SENTENCE
+        bool "Include raw Iridium APNT NMEA sentences"
+        default n
+        depends on UAVCANNODE_IRIDIUM_APNT
+        ---help---
+            Also publish iridium_apnt_sentence as iridium.apnt.Sentence. Adds about 1 kB/s.
+
     config UAVCANNODE_LIGHTS_COMMAND
         bool "Include lights command"
         default n

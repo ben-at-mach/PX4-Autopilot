@@ -1,0 +1,13 @@
+#
+# Iridium APNT satellites in view (NMEA $GSSSV group, sent once the group is complete).
+# The arrays are parallel. Unknown elevation and azimuth are -1, unknown C/N0 is NaN.
+#
+
+# Count reported by the receiver, which may exceed the array size
+uint8 satellites_in_view
+
+int16[<=24] sv_id
+int16[<=24] elevation_deg
+int16[<=24] azimuth_deg
+float16[<=24] cn0_min
+float16[<=24] cn0_max

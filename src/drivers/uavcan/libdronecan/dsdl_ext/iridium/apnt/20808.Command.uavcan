@@ -1,0 +1,24 @@
+#
+# Request to the Iridium APNT receiver behind a node: read or write a parameter, or run a command.
+# The node answers with a Response carrying the same request_id.
+#
+
+# Node that should act. 0 addresses every node.
+uint8 target_node_id
+
+# Echoed by the receiver, used to match the response
+uint32 request_id
+
+uint8 type
+uint8 TYPE_GET     = 0   # $GSGET, read parameter param_id
+uint8 TYPE_SET     = 1   # $GSSET, write parameter param_id with args
+uint8 TYPE_REQUEST = 2   # $GSREQ, run request param_id with args
+
+# Parameter ID, or request ID for TYPE_REQUEST (1 reset, 5 clear NVM parameter, 6 clear all)
+uint16 param_id
+
+# true = non-volatile memory, false = volatile (current session)
+bool nvm
+
+# Comma separated arguments. Empty for none.
+uint8[<=95] args

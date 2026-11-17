@@ -1,0 +1,29 @@
+#
+# Iridium APNT position solution (NMEA $GSPOS).
+# Unknown floats are NaN, unknown coded values are -1.
+#
+
+# Time of validity, microseconds since the GPS epoch (1980-01-06). Zero if unknown.
+uint64 gps_time_us
+
+int64 latitude_deg_1e8
+int64 longitude_deg_1e8
+
+# Height above the WGS84 ellipsoid
+int32 height_ellipsoid_mm
+
+# East-North-Up position covariance, upper triangle row by row: EE, EN, EU, NN, NU, UU. m^2
+float32[6] covariance
+
+# Seconds since the last Iridium burst and since the last Kalman filter update
+float16 burst_age
+float16 kf_age
+
+# Position figure of merit, 1 (best, under 25 m RMS) to 9 (5 km or more). Higher values may occur.
+int8 pfom
+
+int8 mode
+int8 MODE_UNKNOWN        = -1
+int8 MODE_STATIC_KNOWN   = 0   # static, surveyed position
+int8 MODE_STATIC_UNKNOWN = 1   # static, guessed position
+int8 MODE_DYNAMIC        = 3

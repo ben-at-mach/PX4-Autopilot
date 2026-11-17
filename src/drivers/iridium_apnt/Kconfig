@@ -1,0 +1,5 @@
+menuconfig DRIVERS_IRIDIUM_APNT
+	bool "iridium_apnt"
+	default n
+	---help---
+		Enable support for the RockBLOCK APNT (Iridium PNT) receiver
